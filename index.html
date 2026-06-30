@@ -125,6 +125,9 @@
   .key-pool-del:hover{color:var(--margin-red);}
   .key-help{color:var(--ink-soft);font-size:.78rem;margin:8px 0 0;line-height:1.5;}
   .key-help a{color:var(--ink-soft);}
+  .key-video{margin-top:14px;padding-top:14px;border-top:1px dashed rgba(31,42,82,.18);}
+  .key-video-frame{margin-top:12px;border-radius:8px;overflow:hidden;border:1px solid rgba(31,42,82,.12);box-shadow:0 1px 3px rgba(31,42,82,.06);background:#000;}
+  #key-help-video{display:block;width:100%;max-height:420px;background:#000;}
   .model-select-row{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;}
   .model-select-row label{font-family:var(--font-mono);font-size:.74rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);}
   .model-select-row select{font-family:var(--font-mono);font-size:.82rem;padding:5px 8px;border:1.5px solid rgba(31,42,82,.22);border-radius:6px;background:#fafafa;color:var(--ink);cursor:pointer;}
@@ -244,6 +247,20 @@
       Ключи сохраняются автоматически в браузере. Используй <strong>Экспорт</strong> для резервной копии.<br>
       Получить бесплатный ключ: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a>
     </p>
+    <div class="key-video">
+      <div class="settings-head" id="key-video-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="key-video-body">
+        <p class="key-setup-title" style="margin:0;">🎥 Видео: как получить ключ</p>
+        <span class="settings-chevron" id="key-video-chevron">▶</span>
+      </div>
+      <div class="settings-body" id="key-video-body" hidden>
+        <div class="key-video-frame">
+          <video id="key-help-video" controls preload="metadata" playsinline>
+            <source src="help_video.mp4" type="video/mp4">
+            Ваш браузер не поддерживает встроенное видео.
+          </video>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- AI Settings Panel -->
@@ -705,6 +722,10 @@
   var keyStatusPill  = document.getElementById('key-status-pill');
   var keyPoolEl      = document.getElementById('key-pool');
   var modelSelect    = document.getElementById('model-select');
+  var keyVideoToggle  = document.getElementById('key-video-toggle');
+  var keyVideoBody    = document.getElementById('key-video-body');
+  var keyVideoChevron = document.getElementById('key-video-chevron');
+  var keyHelpVideo    = document.getElementById('key-help-video');
   var topicInput     = document.getElementById('topic-input');
   var chipRow        = document.getElementById('chip-row');
   var chipLockHint   = document.getElementById('chip-lock-hint');
@@ -1288,6 +1309,16 @@
   }
   settingsToggle.addEventListener('click', function(){ toggleSettings(settingsBody.hidden); });
   settingsToggle.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); settingsToggle.click(); } });
+
+  // Key-setup video tutorial toggle (mirrors toggleSettings)
+  function toggleKeyVideo(open){
+    keyVideoBody.hidden = !open;
+    keyVideoChevron.textContent = open ? '▼' : '▶';
+    keyVideoChevron.className = 'settings-chevron' + (open ? ' open' : '');
+    keyVideoToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  keyVideoToggle.addEventListener('click', function(){ toggleKeyVideo(keyVideoBody.hidden); });
+  keyVideoToggle.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); keyVideoToggle.click(); } });
 
   // Save custom rules
   rulesSaveBtn.addEventListener('click', function(){

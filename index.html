@@ -219,6 +219,17 @@
   #custom-mode-instructions{width:100%;font-family:var(--font-body);font-size:.9rem;padding:10px 12px;border:1.5px solid rgba(31,42,82,.22);border-radius:6px;background:#fafafa;color:var(--ink);resize:vertical;line-height:1.5;}
   #custom-mode-instructions:focus{outline:none;border-color:var(--ink);}
   .rules-saved.error{color:var(--margin-red);}
+
+  /* ── iOS zoom-bug fix ──────────────────────────────────────────────────
+     Safari on iPhone auto-zooms the page whenever a focused input/textarea/
+     select has a computed font-size below 16px, then snaps back on blur —
+     this is the "screen jumping in and out" behaviour. Forcing 16px on all
+     form controls below the 760px breakpoint removes the trigger entirely. */
+  @media (max-width:760px){
+    input, textarea, select{
+      font-size:16px !important;
+    }
+  }
 </style>
 </head>
 <body>

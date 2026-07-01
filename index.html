@@ -94,7 +94,7 @@
   .dots span:nth-child(3){animation-delay:.4s;}
   @media(prefers-reduced-motion:reduce){.dots span{animation:none;opacity:1;}}
   .pre-input{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
-  .pre-input textarea{font-family:var(--font-body);font-size:1rem;padding:12px;border:1.5px solid rgba(31,42,82,.25);border-radius:8px;resize:vertical;}
+  .pre-input textarea{font-family:var(--font-body);font-size:1rem;padding:12px;border:1.5px solid rgba(31,42,82,.25);border-radius:8px;resize:none;max-height:400px;overflow-y:auto;}
   .pre-input textarea:focus{outline:none;border-color:var(--ink);}
   .pre-input button{align-self:flex-start;}
   .status-line{min-height:1.2em;font-size:.85rem;color:var(--ink-soft);margin-top:8px;}
@@ -267,9 +267,24 @@
   @keyframes pool-shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
   .pool-pwd-input.shake{animation:pool-shake .38s ease;}
   .pool-pwd-input:disabled{opacity:.5;cursor:not-allowed;background:rgba(31,42,82,.04);}
+  /* anti-FOUT: hide body until webfonts are ready (or 400ms fallback), then fade in */
+  html:not(.fonts-ready) body{opacity:0;}
+  body{transition:opacity .18s ease-out;}
 </style>
 </head>
 <body>
+<script>
+(function(){
+  var html = document.documentElement;
+  function reveal(){ html.classList.add('fonts-ready'); }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(reveal);
+  } else {
+    reveal();
+  }
+  setTimeout(reveal, 400);
+})();
+</script>
 <div class="wrap">
 
   <header class="masthead">
@@ -480,6 +495,11 @@
 <script>
 (function(){
   "use strict";
+
+  // On touch devices (phones/tablets) Enter should insert a newline, like any
+  // normal messaging app — only real keyboards (mouse/trackpad = fine pointer)
+  // treat plain Enter as "send". This matches how phone users actually type.
+  var isTouchDevice = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 
   function icon(inner){
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + inner + '</svg>';
@@ -715,6 +735,7 @@
   var KICKOFF = 'Готов, начинай.';
   var MAX_RETRIES = 5;
   var RETRY_DELAY_MS = [2000, 5000, 10000, 18000, 30000];
+  var MAX_KEY_POOL = 100;   // max keys allowed in the local pool (change freely)
   var modelName = 'gemini-2.5-flash-lite';
 
   var MODES = [
@@ -988,7 +1009,7 @@
     if(parsed.length === 0){ keyStatusPill.textContent='ключи не найдены — нужны AIza... или AQ....'; keyStatusPill.className='key-status-pill err'; return; }
     var added=0, skipped=0;
     parsed.forEach(function(k){
-      if(keyPool.length>=20){skipped++;return;}
+      if(keyPool.length>=MAX_KEY_POOL){skipped++;return;}
       if(keyPool.some(function(e){return e.key===k;})){skipped++;return;}
       keyPool.push({key:k,status:'idle'}); added++;
     });
@@ -1021,7 +1042,7 @@
       var text=e.target.result, keys=[];
       try{ var obj=JSON.parse(text); if(Array.isArray(obj)) keys=obj; else if(obj.gemini_keys) keys=obj.gemini_keys; else keys=parseKeysFromText(text); }catch(err){ keys=parseKeysFromText(text); }
       var added=0;
-      keys.forEach(function(k){ k=String(k).trim(); if(!isValidKey(k)||keyPool.length>=20||keyPool.some(function(e){return e.key===k;})) return; keyPool.push({key:k,status:'idle'}); added++; });
+      keys.forEach(function(k){ k=String(k).trim(); if(!isValidKey(k)||keyPool.length>=MAX_KEY_POOL||keyPool.some(function(e){return e.key===k;})) return; keyPool.push({key:k,status:'idle'}); added++; });
       if(currentKeyIndex<0 && keyPool.length>0) currentKeyIndex=0;
       renderKeyPool(); updateModesEnabled(); saveToStorage();
       keyStatusPill.textContent='✓ импортировано '+added+' ключей из файла'; keyStatusPill.className='key-status-pill ok';
@@ -1830,7 +1851,10 @@
     poolLockTimer = setInterval(tick, 1000);
   }
 
+  var poolCloseTimer = null;
+
   function openPoolModal(){
+    if(poolCloseTimer){ clearTimeout(poolCloseTimer); poolCloseTimer = null; }
     poolPwdInput.value = '';
     poolModalIcon.textContent = '🔒';
     poolModalIcon.className = 'pool-modal-icon';
@@ -1850,19 +1874,20 @@
   }
 
   function closePoolModal(){
-    if(poolModal.style.display === 'none') return;
+    if(poolModal.style.display === 'none' || poolModal.classList.contains('closing')) return;
     poolModal.classList.add('closing');
-    setTimeout(function(){
+    poolCloseTimer = setTimeout(function(){
       poolModal.style.display = 'none';
       poolModal.classList.remove('closing');
       poolPwdInput.value = '';
+      poolCloseTimer = null;
     }, 160);
   }
 
   if(poolOpenBtn) poolOpenBtn.addEventListener('click', openPoolModal);
   poolCancelBtn.addEventListener('click', closePoolModal);
   poolModal.addEventListener('click', function(e){ if(e.target === poolModal) closePoolModal(); });
-  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && !poolModal.hidden) closePoolModal(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && poolModal.style.display !== 'none') closePoolModal(); });
   poolPwdInput.addEventListener('keydown', function(e){
     if(e.key === 'Enter'){ e.preventDefault(); doUnlockPool(); }
   });
@@ -1960,7 +1985,7 @@
         found.forEach(function(k){
           if(seen[k] || !isValidKey(k)) return;
           seen[k] = true;
-          if(keyPool.length >= 20) return;
+          if(keyPool.length >= MAX_KEY_POOL) return;
           if(keyPool.some(function(e){ return e.key === k; })) return;
           keyPool.push({key:k, status:'idle'});
           added++;
@@ -2217,14 +2242,24 @@
     customModes.push({key:'custom_'+Date.now(), label:label, desc:desc, instructions:instr, custom:true});
     saveCustomModes();
     renderModeGrid(); updateModesEnabled();
-    toggleCustomModeForm(false);
+    customModeStatusEl.classList.remove('error');
+    customModeStatusEl.textContent = '✓ Режим добавлен';
+    setTimeout(function(){ toggleCustomModeForm(false); }, 900);
   });
+
+  function escapeHtml(text){
+    return text.replace(/[&<>]/g,function(c){return c==='&'?'&amp;':c==='<'?'&lt;':'&gt;';});
+  }
 
   function renderMarkdown(text){
     try{
-      if(window.marked){ marked.setOptions({breaks:true,mangle:false,headerIds:false}); var raw=marked.parse(text); return window.DOMPurify?DOMPurify.sanitize(raw):raw; }
+      if(window.marked){
+        marked.setOptions({breaks:true,mangle:false,headerIds:false});
+        var raw=marked.parse(text);
+        return window.DOMPurify ? DOMPurify.sanitize(raw) : escapeHtml(text);
+      }
     }catch(e){}
-    return text.replace(/[&<>]/g,function(c){return c==='&'?'&amp;':c==='<'?'&lt;':'&gt;';});
+    return escapeHtml(text);
   }
 
   function renderMath(node){
@@ -2284,7 +2319,7 @@
     if(mode.preInput){
       preInputArea.hidden=false;
       preInputLabel.textContent=mode.preInputLabel;
-      preInputText.value=''; preInputText.focus();
+      preInputText.value=''; preInputText.style.height=''; preInputText.focus();
     } else {
       preInputArea.hidden=true;
       state.messages.push({role:'user',content:KICKOFF});
@@ -2294,6 +2329,9 @@
 
   function submitPreInput(){
     var text=preInputText.value.trim(); if(!text||state.busy) return;
+    preInputText.value='';           // clear the box right away
+    preInputText.style.height='';    // reset auto-height
+    void preInputText.offsetHeight;  // force repaint (some mobile browsers lag otherwise)
     state.messages.push({role:'user',content:text});
     appendMessage('user',text);
     preInputArea.hidden=true;
@@ -2303,7 +2341,13 @@
   preInputSubmit.addEventListener('click', submitPreInput);
 
   preInputText.addEventListener('keydown', function(e){
-    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); submitPreInput(); }
+    if(e.key==='Enter' && !e.shiftKey && !isTouchDevice){ e.preventDefault(); submitPreInput(); }
+  });
+
+  // Auto-grow textarea height (same behaviour as the persistent chat input)
+  preInputText.addEventListener('input', function(){
+    this.style.height='';
+    this.style.height=Math.min(this.scrollHeight, 400)+'px';
   });
 
   // ── Persistent chat input ────────────────────────────────────────────
@@ -2318,6 +2362,7 @@
     var text=chatInputText.value.trim(); if(!text||state.busy) return;
     chatInputText.value='';
     chatInputText.style.height=''; // reset auto-height
+    void chatInputText.offsetHeight; // force repaint (some mobile browsers lag otherwise)
     state.messages.push({role:'user',content:text});
     appendMessage('user',text);
     runRequest();
@@ -2326,7 +2371,7 @@
   chatSendBtn.addEventListener('click', sendChatMessage);
 
   chatInputText.addEventListener('keydown', function(e){
-    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendChatMessage(); }
+    if(e.key==='Enter' && !e.shiftKey && !isTouchDevice){ e.preventDefault(); sendChatMessage(); }
   });
 
   // Auto-grow textarea height
@@ -2423,6 +2468,29 @@
     saveToStorage(); updateModesEnabled();
   }
 
+  function applyTopicOnly(topic){
+    topicInput.value = topic;
+    state.topic = topic.trim().replace(/\s+/g,' ').slice(0,120);
+    saveToStorage(); updateModesEnabled();
+  }
+
+  // Picks a real topic from the curriculum catalog for a given level, so that
+  // even the offline fallback (used when the API call fails) stays grade-
+  // appropriate instead of grabbing something from a flat, level-agnostic list.
+  // Returns null if the level has no catalog entry (e.g. "Взрослый — с нуля").
+  function pickCatalogTopic(level){
+    var entry = null;
+    for(var i=0; i<TOPIC_CATALOG.length; i++){ if(TOPIC_CATALOG[i].grade === level){ entry = TOPIC_CATALOG[i]; break; } }
+    if(!entry) return null;
+    var pool = [];
+    for(var j=0; j<entry.categories.length; j++){
+      var t = entry.categories[j].topics;
+      if(t) pool = pool.concat(t);
+    }
+    if(!pool.length) return null;
+    return pool[Math.floor(Math.random()*pool.length)];
+  }
+
   randomBtn.addEventListener('click', function(){
     var hasKey = keyPool.some(function(k){ return k.status!=='exhausted'&&k.status!=='error'; });
     if(!hasKey){
@@ -2433,13 +2501,29 @@
     randomBtn.disabled = true;
     randomBtn.textContent = '⏳ Генерирую…';
     randomHintEl.textContent = '';
+
+    // If the student already picked a level, keep it — only invent a topic
+    // that fits it. Otherwise (no level chosen yet) invent both.
+    var lockedLevel = state.level || '';
+    // Ground the AI in the *real* curriculum for this level (same data source
+    // used inside actual lessons) instead of letting it freely guess what
+    // "12 класс" means — free guessing is what produced mismatched topics
+    // like "Простые числа" for a senior/university level.
+    var scopeHint = lockedLevel ? levelCurriculumHint(lockedLevel) : '';
+    var prompt = lockedLevel
+      ? 'Придумай одну неожиданную и конкретную математическую тему для урока для уровня «'+lockedLevel+'».\n\n'
+        + (scopeHint ? scopeHint + '\n\n' : '')
+        + 'Тема ОБЯЗАТЕЛЬНО должна относиться к одному из перечисленных выше разделов программы этого уровня и быть сопоставимой по сложности с примерами. Не предлагай темы из более лёгких/младших уровней программы.\n\n'
+        + 'Отвечай ТОЛЬКО JSON без комментариев и без markdown:\n{"topic":"тема на русском"}\nТема должна быть специфической (не «Математический анализ», а «Ряд Тейлора»; не «Алгебра», а «Собственные значения матрицы»). Будь оригинальным, но не выходи за пределы программы уровня «'+lockedLevel+'».'
+      : 'Придумай одну неожиданную и конкретную математическую тему для урока и подходящий уровень ученика. Отвечай ТОЛЬКО JSON без комментариев и без markdown:\n{"topic":"тема на русском","level":"уровень"}\nВозможные уровни (только из этого списка, точное написание): 5 класс, 7 класс, 9 класс, 11 класс, Студент, Взрослый — с нуля.\nТема должна быть специфической (не «Тригонометрия», а «Формула двойного угла»; не «Алгебра», а «Разложение трёхчлена на множители»). Будь оригинальным.';
+
     var keyIdx = findWorkingKeyFrom(0);
     var url = 'https://generativelanguage.googleapis.com/v1beta/models/'+modelName+':generateContent?key='+encodeURIComponent(keyPool[keyIdx].key);
     fetch(url, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        contents:[{role:'user',parts:[{text:'Придумай одну неожиданную и конкретную математическую тему для урока и подходящий уровень ученика. Отвечай ТОЛЬКО JSON без комментариев и без markdown:\n{"topic":"тема на русском","level":"уровень"}\nВозможные уровни (только из этого списка, точное написание): 5 класс, 7 класс, 9 класс, 11 класс, Студент, Взрослый — с нуля.\nТема должна быть специфической (не «Тригонометрия», а «Формула двойного угла»; не «Алгебра», а «Разложение трёхчлена на множители»). Будь оригинальным.'}]}],
-        generationConfig:{maxOutputTokens:80,temperature:1.4,thinkingConfig:{thinkingBudget:0}}
+        contents:[{role:'user',parts:[{text:prompt}]}],
+        generationConfig:{maxOutputTokens:80,temperature:(lockedLevel?0.9:1.4),thinkingConfig:{thinkingBudget:0}}
       })
     })
     .then(function(r){ return r.json(); })
@@ -2452,16 +2536,28 @@
       var m=clean.match(/\{[\s\S]*?\}/); if(m) clean=m[0];
       var obj=JSON.parse(clean);
       if(!obj.topic) throw new Error('no topic');
-      applyTopicAndLevel(obj.topic, obj.level||'');
+      if(lockedLevel){
+        applyTopicOnly(obj.topic);
+      } else {
+        applyTopicAndLevel(obj.topic, obj.level||'');
+      }
       randomHintEl.textContent = '✓ '+obj.topic+' · '+state.level;
       setTimeout(function(){ randomHintEl.textContent=''; }, 3000);
     })
     .catch(function(){
-      // Fallback to hardcoded list
-      var t=ALL_RANDOM_TOPICS[Math.floor(Math.random()*ALL_RANDOM_TOPICS.length)];
-      var l=LEVELS[Math.floor(Math.random()*LEVELS.length)];
-      applyTopicAndLevel(t, l.label);
-      randomHintEl.textContent='✓ '+t+' · '+state.level;
+      // Fallback (API failed / bad JSON) — never overwrite an already-chosen
+      // level, and never fall back to a level-agnostic topic if we can help it.
+      if(lockedLevel){
+        var ct = pickCatalogTopic(lockedLevel);
+        var t = ct || ALL_RANDOM_TOPICS[Math.floor(Math.random()*ALL_RANDOM_TOPICS.length)];
+        applyTopicOnly(t);
+        randomHintEl.textContent='✓ '+t+' · '+state.level;
+      } else {
+        var t2=ALL_RANDOM_TOPICS[Math.floor(Math.random()*ALL_RANDOM_TOPICS.length)];
+        var l=LEVELS[Math.floor(Math.random()*LEVELS.length)];
+        applyTopicAndLevel(t2, l.label);
+        randomHintEl.textContent='✓ '+t2+' · '+state.level;
+      }
       setTimeout(function(){ randomHintEl.textContent=''; }, 3000);
     })
     .then(function(){

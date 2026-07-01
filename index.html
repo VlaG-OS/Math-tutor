@@ -102,7 +102,15 @@
   .status-line.warning{color:#b87300;}
   .foot-note{color:var(--ink-soft);font-size:.82rem;text-align:center;margin-top:8px;padding:0 8px;}
   .key-setup{padding:16px 20px;margin-bottom:26px;background:#fff;border:1px solid rgba(31,42,82,.12);border-left:4px solid var(--margin-red);border-radius:8px;font-size:.88rem;}
-  .key-setup-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .key-setup-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;cursor:pointer;user-select:none;}
+  .key-setup-head:hover .key-setup-title{color:var(--ink);}
+  /* pool access divider + button */
+  .pool-access-divider{text-align:center;font-family:var(--font-mono);font-size:.72rem;color:var(--ink-soft);letter-spacing:.12em;text-transform:uppercase;margin:14px 0 10px;position:relative;}
+  .pool-access-divider::before,.pool-access-divider::after{content:'';position:absolute;top:50%;width:calc(50% - 22px);height:1px;background:rgba(31,42,82,.13);}
+  .pool-access-divider::before{left:0;}
+  .pool-access-divider::after{right:0;}
+  .btn-pool-open{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px 18px;background:rgba(192,71,63,.07);border:1.5px solid rgba(192,71,63,.35);border-radius:8px;color:var(--margin-red);font-family:var(--font-body);font-size:.92rem;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.01em;}
+  .btn-pool-open:hover{background:rgba(192,71,63,.14);border-color:var(--margin-red);}
   .key-setup-title{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--margin-red);margin:0;}
   .key-status-pill{font-family:var(--font-mono);font-size:.76rem;padding:2px 9px;border-radius:999px;background:rgba(31,42,82,.07);color:var(--ink-soft);}
   .key-status-pill.ok{background:rgba(30,120,60,.1);color:#1a6e30;}
@@ -230,6 +238,29 @@
       font-size:16px !important;
     }
   }
+  /* ── Pool Key Modal ────────────────────────────────────────────────────── */
+  .pool-modal-overlay{position:fixed;inset:0;background:rgba(31,42,82,.52);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;animation:pmFadeIn .18s ease;}
+  @keyframes pmFadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+  .pool-modal-card{background:var(--paper);border-radius:10px;box-shadow:0 14px 52px rgba(31,42,82,.32);max-width:360px;width:100%;display:flex;overflow:hidden;}
+  .pool-modal-spine{width:5px;background:var(--margin-red);flex-shrink:0;}
+  .pool-modal-body{padding:28px 24px 22px;flex:1;display:flex;flex-direction:column;align-items:center;gap:13px;}
+  .pool-modal-icon{font-size:2.4rem;line-height:1;transition:transform .35s cubic-bezier(.34,1.56,.64,1);}
+  .pool-modal-icon.unlocked{transform:rotate(-20deg);}
+  .pool-modal-title{font-family:var(--font-display);font-size:1.5rem;color:var(--ink);margin:0;text-align:center;}
+  .pool-modal-hint{font-size:.83rem;color:var(--ink-soft);margin:0;text-align:center;line-height:1.5;}
+  .pool-pwd-input{font-family:var(--font-mono);font-size:1.55rem;letter-spacing:.35em;text-align:center;padding:10px 12px;border:1.5px solid rgba(31,42,82,.25);border-radius:8px;width:100%;background:#fff;color:var(--ink);box-sizing:border-box;transition:border-color .12s;}
+  .pool-pwd-input:focus{outline:none;border-color:var(--ink);}
+  .pool-modal-btns{display:flex;gap:10px;width:100%;}
+  .pool-modal-btns .btn-primary,.pool-modal-btns .btn-ghost{flex:1;text-align:center;}
+  .pool-modal-msg{font-size:.82rem;min-height:1.2em;text-align:center;margin:0;font-family:var(--font-mono);}
+  .pool-modal-msg.ok{color:#1a6e30;}
+  .pool-modal-msg.err{color:var(--margin-red);}
+  .btn-pool-access{background:rgba(192,71,63,.07);border:1.5px dashed rgba(192,71,63,.4);color:var(--margin-red);border-radius:6px;padding:7px 14px;font-family:var(--font-body);cursor:pointer;font-size:.85rem;display:inline-flex;align-items:center;gap:7px;transition:all .15s;margin-top:8px;}
+  .btn-pool-access:hover{background:rgba(192,71,63,.13);border-style:solid;}
+  /* brute-force protection */
+  @keyframes pool-shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
+  .pool-pwd-input.shake{animation:pool-shake .38s ease;}
+  .pool-pwd-input:disabled{opacity:.5;cursor:not-allowed;background:rgba(31,42,82,.04);}
 </style>
 </head>
 <body>
@@ -241,44 +272,54 @@
   </header>
 
   <div class="key-setup" id="key-setup">
-    <div class="key-setup-head">
-      <p class="key-setup-title">Пул ключей Gemini</p>
+    <div class="key-setup-head" id="key-setup-toggle" role="button" tabindex="0" aria-expanded="true" aria-controls="key-setup-body">
+      <p class="key-setup-title">Ключи Gemini</p>
       <span class="key-status-pill" id="key-status-pill">нет ключей</span>
+      <span class="settings-chevron" id="key-setup-chevron" style="margin-left:auto;">▼</span>
     </div>
-    <textarea id="key-input" rows="3" placeholder="Вставь один или несколько ключей — каждый на новой строке или через запятую:&#10;AQ.Ab8RN6K3BhTKUA...&#10;AIzaSyBHt34xNFuHJ..." spellcheck="false" autocomplete="off"></textarea>
-    <div class="key-input-row" style="margin-top:8px;">
-      <button type="button" class="btn-primary" id="key-save-btn">Добавить ключи</button>
-      <button type="button" class="btn-ghost" id="key-export-btn" title="Скачать ключи в файл">⬇ Экспорт</button>
-      <button type="button" class="btn-ghost" id="key-import-btn" title="Загрузить ключи из файла">⬆ Импорт</button>
-      <input type="file" id="key-import-file" accept=".json,.txt" style="display:none">
-    </div>
-    <div class="key-pool" id="key-pool"></div>
-    <div class="model-select-row">
-      <label for="model-select">Модель:</label>
-      <select id="model-select">
-        <option value="gemini-2.5-flash-lite" selected>gemini-2.5-flash-lite ✓ (рекомендуется, стабильно, бесплатно)</option>
-        <option value="gemini-2.5-flash">gemini-2.5-flash (умнее, но медленнее на бесплатном)</option>
-        <option value="gemini-3.5-flash">gemini-3.5-flash ✨ (новейший, лучшее качество)</option>
-        <option value="gemini-2.5-pro">gemini-2.5-pro (самый умный, лимит 50/день)</option>
-      </select>
-    </div>
-    <p class="key-help">
-      Ключи сохраняются автоматически в браузере. Используй <strong>Экспорт</strong> для резервной копии.<br>
-      Получить бесплатный ключ: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a>
-    </p>
-    <div class="key-video">
-      <div class="settings-head" id="key-video-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="key-video-body">
-        <p class="key-setup-title" style="margin:0;">🎥 Видео: как получить ключ</p>
-        <span class="settings-chevron" id="key-video-chevron">▶</span>
+    <div id="key-setup-body">
+      <textarea id="key-input" rows="3" placeholder="Вставь один или несколько ключей — каждый на новой строке или через запятую:&#10;AQ.Ab8RN6K3BhTKUA...&#10;AIzaSyBHt34xNFuHJ..." spellcheck="false" autocomplete="off"></textarea>
+      <div class="key-input-row" style="margin-top:8px;">
+        <button type="button" class="btn-primary" id="key-save-btn">Добавить ключи</button>
+        <button type="button" class="btn-ghost" id="key-export-btn" title="Скачать ключи в файл">⬇ Экспорт</button>
+        <button type="button" class="btn-ghost" id="key-import-btn" title="Загрузить ключи из файла">⬆ Импорт</button>
+        <input type="file" id="key-import-file" accept=".json,.txt" style="display:none">
       </div>
-      <div class="settings-body" id="key-video-body" hidden>
-        <div class="key-video-frame">
-          <video id="key-help-video" controls preload="metadata" playsinline>
-            <source src="help_video.mp4" type="video/mp4">
-            Ваш браузер не поддерживает встроенное видео.
-          </video>
+      <div class="key-pool" id="key-pool"></div>
+      <div class="model-select-row">
+        <label for="model-select">Модель:</label>
+        <select id="model-select">
+          <option value="gemini-2.5-flash-lite" selected>gemini-2.5-flash-lite ✓ (рекомендуется, стабильно, бесплатно)</option>
+          <option value="gemini-2.5-flash">gemini-2.5-flash (умнее, но медленнее на бесплатном)</option>
+          <option value="gemini-3.5-flash">gemini-3.5-flash ✨ (новейший, лучшее качество)</option>
+          <option value="gemini-2.5-pro">gemini-2.5-pro (самый умный, лимит 50/день)</option>
+        </select>
+      </div>
+      <p class="key-help">
+        Ключи сохраняются автоматически в браузере. Используй <strong>Экспорт</strong> для резервной копии.<br>
+        Получить бесплатный ключ: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a>
+      </p>
+      <div class="key-video">
+        <div class="settings-head" id="key-video-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="key-video-body">
+          <p class="key-setup-title" style="margin:0;">🎥 Видео: как получить ключ</p>
+          <span class="settings-chevron" id="key-video-chevron">▶</span>
+        </div>
+        <div class="settings-body" id="key-video-body" hidden>
+          <div class="key-video-frame">
+            <video id="key-help-video" controls preload="metadata" playsinline>
+              <source src="help_video.mp4" type="video/mp4">
+              Ваш браузер не поддерживает встроенное видео.
+            </video>
+          </div>
         </div>
       </div>
+    </div>
+    <div id="pool-access-row" style="display:none;">
+      <div class="pool-access-divider">или</div>
+      <button type="button" class="btn-pool-open" id="pool-open-btn">
+        <span>🎓</span>
+        <span>Ввести код от учителя</span>
+      </button>
     </div>
   </div>
 
@@ -395,6 +436,24 @@
     Ответы создаёт ИИ — это тренажёр для практики, а не учебник. Перепроверяй важные вычисления самостоятельно.<br>
     <span style="margin-top:6px;display:inline-block;">Владислав Горбатов &mdash; <a href="https://t.me/Roscers" target="_blank" rel="noopener" style="color:inherit;">@Roscers</a></span>
   </footer>
+
+  <!-- Pool Key Modal -->
+  <div id="pool-modal" class="pool-modal-overlay" style="display:none;">
+    <div class="pool-modal-card">
+      <div class="pool-modal-spine"></div>
+      <div class="pool-modal-body">
+        <div class="pool-modal-icon" id="pool-modal-icon">🔒</div>
+        <p class="pool-modal-title">Ключи учителя</p>
+        <p class="pool-modal-hint">Введи код доступа, чтобы получить ключи Gemini и начать занятие бесплатно.</p>
+        <input type="password" id="pool-pwd-input" class="pool-pwd-input" placeholder="• • • •" autocomplete="off" maxlength="10" inputmode="numeric">
+        <div class="pool-modal-btns">
+          <button type="button" class="btn-primary" id="pool-unlock-btn">Получить ключи</button>
+          <button type="button" class="btn-ghost" id="pool-cancel-btn">Отмена</button>
+        </div>
+        <p class="pool-modal-msg" id="pool-modal-msg"></p>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
@@ -919,7 +978,7 @@
     if(added>0){
       keyStatusPill.textContent='✓ добавлено '+added+(skipped?', пропущено дубликатов: '+skipped:'');
       keyStatusPill.className='key-status-pill ok';
-      setTimeout(function(){ renderKeyPool(); }, 2500);
+      setTimeout(function(){ renderKeyPool(); toggleKeySetup(false); }, 1500);
     }
   });
 
@@ -952,6 +1011,944 @@
   });
 
   modelSelect.addEventListener('change', function(){ modelName=modelSelect.value; saveToStorage(); });
+
+  // ── Pool Key Access ──────────────────────────────────────────────────────
+  // Paste the output of key_admin.html here when ready.
+  // Leave as null until then — the button stays hidden automatically.
+  var POOL_CONFIG = {
+  "entries": [
+    {
+      "tier": "9",
+      "salt": "vnSve52TGoaQcaLCLnl/yg==",
+      "iv": "R0Uega0SXCTASvbq",
+      "ct": "5Agkx80a58YP4VsP4sY0I5pMgFjY62xTTYMxdt2GZFQJTPvqPygQDJ8ghHIDvMUlj9dye4SaY0XMj9AtnsyjHUD0vmrLugCcrA=="
+    },
+    {
+      "tier": "9",
+      "salt": "ACKOuFBdD8OHWJol79vynA==",
+      "iv": "jEaGBBi119RJJpSH",
+      "ct": "ERn44/Yiz90Y2Ll1pgkWm3Rjjqn95qJJgRTDm9lTqi0CYgKi2v455M3vjj70KU0h8jlq2aQnI148UK5WJmrh/421GGW/PxmmqQ=="
+    },
+    {
+      "tier": "9",
+      "salt": "k7cMlgmVEZUvjwFu43ZrNA==",
+      "iv": "o+8Gv8FEZwvrIiLQ",
+      "ct": "0v+bdLuuPiNsfLjg9sqvWzOUV04BWbjvuOwHJtrSxUKi8mTkqhQ7nBBOk24fY0xxUphfX4dzwtbiE9IPborLT2fPKNmP+Eq3lQ=="
+    },
+    {
+      "tier": "9",
+      "salt": "/I0/Wh6wEplLaASfT74YRQ==",
+      "iv": "0HdCBWixDGDlu4VP",
+      "ct": "Wm3KXs5s08h7uxLc+3kg/Em4KyjACTx4EKGFCjuS1MqnPt0zbvMWltDa6ewfmmoBvD7JkjS9s8Bu+vv2YgjM2Mg2mThCBiatuQ=="
+    },
+    {
+      "tier": "9",
+      "salt": "3Pew7D3/Mjr5YCytfHGDlw==",
+      "iv": "w/Jj02bvMnPqKijJ",
+      "ct": "GCwcsL0RsiuAh6Fyrk2r/oHDvc11LWgozSpr8extLUsr2SE8snzqqvGkK7OpUKF4RlO+ESewan+FChWcqHr+yGQtmMz/ZCM1aQ=="
+    },
+    {
+      "tier": "9",
+      "salt": "aT+pGQ8fLlCX7rU4KG2JMw==",
+      "iv": "CTwgNyQ2xJ+eRpJr",
+      "ct": "YYoNkh1r+yrmjaKlWjilSbFd5TWDmAnglOlBUI5Y5t+xtdW0irSB0B1ymZvQj4bHe+Xo6j40uJstfR8Xz9OS58RZgs8VA7FGag=="
+    },
+    {
+      "tier": "9",
+      "salt": "OBjLBdCknpjEblYAPd7hMQ==",
+      "iv": "AkFvQyDKYdCCzCG7",
+      "ct": "qqAsENvOKYJ7txkdVPnCrvdtmoFIOiIhUzjRHtJJUoEcsp8Kwb1LjLOYPMpq/0b66EP41KEIb4aiaQrC67NLIdZVmuvNzkILWg=="
+    },
+    {
+      "tier": "9",
+      "salt": "RrljwdZL6b4dYVKUfXA+9A==",
+      "iv": "LBY3X0eeKB2Wh3D6",
+      "ct": "nxwtrywQQc358fWurGIdZCi60WqrpSj1xGvzzHScN+IAeDNDyvHcbep94cM51lYmq5u3+WhJDIidyFWbRYSbaTeGvlBqTCpmQA=="
+    },
+    {
+      "tier": "9",
+      "salt": "++4iw8Mius/BXhjwqbgLjg==",
+      "iv": "BsXo/kIa7fIYs6Q0",
+      "ct": "mBYk/+vT2Ycnf0UTKrL9D8Df9u5eMMhjDuCbaq+77kpFKRK3Q/pWO9Oez+Tx0z/iONrtORJ0FXoao4l35YvvUhJ/rsjnr9mVRg=="
+    },
+    {
+      "tier": "9",
+      "salt": "jSm45WRUvgdZkpgVwtsKpQ==",
+      "iv": "anFLIVYLfSi1PwDl",
+      "ct": "XU/ndtHhiuHjBkzfXP6VvYRKSehyjFGDSLvsHjYDjXLyDBR06CbLqxxrn6pAhzwLNuiFw7n7FxOsVglX4oS3MEUQqPmIYr78Og=="
+    },
+    {
+      "tier": "9",
+      "salt": "PYvzMsDPk4U8unz2z2o9jw==",
+      "iv": "VgNzlGk+zE+na9zj",
+      "ct": "QY2ezFLgJarf5C/5/YfjnBy3JUlJTRycKZA5RiyqeNl2DoWQxUxYFigVoTFAfNG21jPZrjLT8lu6Eh0Ab36OFpqi1Zktl/q7iw=="
+    },
+    {
+      "tier": "9",
+      "salt": "edDOEpSZ0MFaHjWLSFnjnA==",
+      "iv": "EvW4zaqRbES137iQ",
+      "ct": "ptJAiA8VXKFvIDqITolJNcuTQzx9JNw/AwSEBMIy5ClfYrDb267xBIH1QugcHHciXI0q4a/HoGXVAm3zWlJ/0jRRImvdNyOlew=="
+    },
+    {
+      "tier": "9",
+      "salt": "/lx0ivHynJR/MABa77L2dw==",
+      "iv": "//99WrJQN88bj8Wp",
+      "ct": "KSltz429K+iLfhkUVu3AOyCh3TpwM//Mc8Iete/qBz9gdNAxP36jiRj0o9V9EzmtlEo342npJu66vdBZN9tNqV1PzTYPz7UyaQ=="
+    },
+    {
+      "tier": "9",
+      "salt": "vst5oLWVXrpXgqZU311d3g==",
+      "iv": "R8xYYGCksghGllFi",
+      "ct": "hwACkhgbZQX8HZSjZt/e95LXjSWLRfBvYfIX6vklM58yqbgjtzPnGrPiC3PF80cymdaZnISffWp2rfS2zgbQU07YyDiDAUq4Cg=="
+    },
+    {
+      "tier": "9",
+      "salt": "1BPfQFVCXXYjnXKYDZWE+w==",
+      "iv": "+cOfQt2y7r8hzHDp",
+      "ct": "IdcWwfOlkeY1dsd7FVo4j/IB7cAa9i5i1PirZSzmVDaVYzBcSQ2m1dmRAIrz9ZF63SO9eau8Untz8wOU/n9bMncWSnTj7DyHig=="
+    },
+    {
+      "tier": "9",
+      "salt": "R3OAho35nPk3g6SriHB8Ww==",
+      "iv": "nsNQDhBaRFUrT31U",
+      "ct": "vu2o+ptVa97v2Jh7YPOafckGvzgX5kwwYRpGCBWveArnXjjlJeDgsmISVArPVBIdiISVrtkwUqiz2ssN4VTEeGSIba+TWp6M1g=="
+    },
+    {
+      "tier": "9",
+      "salt": "3rtl3HB3I26d+YVrgDBt8A==",
+      "iv": "pJ6giqjZX6xsrNWp",
+      "ct": "3E1RytHnYsG/O+bOIjCxwkH06EuhiQmQePiH1ycex/scNcgPmZDq3me4gZMD7bTYn2I4/xBGFWacLIgcNocmwRzd60Yh7t6E+A=="
+    },
+    {
+      "tier": "9",
+      "salt": "Mr4eG+Epk46NEC3dormFBA==",
+      "iv": "Kj1MUSvGfPC26rxj",
+      "ct": "K5bQOyJgw4Cz4EvAVBuBGYa7QWf/qO5L+gaLR47/t0jKtm1M+ZCvWbr/rlJX70i0imgGccyxmPZZZQXSjFsO+cD3DXna4pG8og=="
+    },
+    {
+      "tier": "9",
+      "salt": "ZyxU31XGtDcaZuS9QPo0Ig==",
+      "iv": "BtPaqaEgOGBCQJRv",
+      "ct": "TSNDlKydMwGv/XC3hz9kjNEwtMyWZenAxQNeXlshEFhFqVOcgOS/ggeaaeDQw4W+8kghaTwW+aao4Z+9MHeISpw7s1m8lddQXA=="
+    },
+    {
+      "tier": "9",
+      "salt": "tWlV2qIxAB0OBwG1mChKyA==",
+      "iv": "u+HGEEKyN8pI4x4c",
+      "ct": "xdaevNcv3xsmZXgrEe+sxFn8KLky+qB5uOUJ5Bd5ewj9pF8in+Y8jdrmRLBebPMAtb9V9//TJWL3HH6qE9tINHEraXZLnZiI2g=="
+    },
+    {
+      "tier": "9",
+      "salt": "bwzAZ36fpnyTVm+JvB5PUg==",
+      "iv": "OZZsN8wXSUhzQyct",
+      "ct": "/w+bZE9KpXoV2VK7LsH1th5zXxzZGIRfVfQ3XW8UjL/qJpIHVbnCI7zHm09illQzGoJTo2ibBFspFdQlGtTasQrvyC0Ord33Ww=="
+    },
+    {
+      "tier": "9",
+      "salt": "5xAWLJbXLHmc4EO655/dCg==",
+      "iv": "RhHl0DZLTwcC50vW",
+      "ct": "wg4QRwvnf5YZ8jSnwasyV8ehPausMLt33MBZ36D7T0a9EABklyC3FMst7gE0YBZ0psY6tAxkj7ppcjDwFhQymjufT2r2OwrNeA=="
+    },
+    {
+      "tier": "9",
+      "salt": "RqI6y1XjbL3bmptHb+T+sw==",
+      "iv": "G5p2XhINDzEbjdn7",
+      "ct": "vlS8jx1+6PkeWlY/PjgejpMJNX5pkDG6woJ3AdTdtqQ0Mtlz/kbQ71poc+/hjVYocWMJfTDld9/W6LNoG8eoyzCH+EkdRwmeTQ=="
+    },
+    {
+      "tier": "9",
+      "salt": "a9Jtk9ky+dhZWBuoCqx1yQ==",
+      "iv": "ffRJ99gjfEAhUiLl",
+      "ct": "jb1rKCvistuKnkgHzamd8Fh4y7ov6KW/Hgo59ljTQv94cZ9nw5UmCgsFhPIpDqr8b/I6Zm2+bCErdfg="
+    },
+    {
+      "tier": "9",
+      "salt": "57/CF5+7UVJVpVLZBJt/qw==",
+      "iv": "o4f8Uv/l0KTbBHKI",
+      "ct": "IUnpW9FVjAVw/mh3w364/dcc47/ya1/pUsBYC48kX6wFpFUtCQvR5K2N/uYKMn9b2jRiNhzXa+6rGRGLrOvH+P5tOdb7LoLJrA=="
+    },
+    {
+      "tier": "9",
+      "salt": "/2U2B19xhQDJUp0laJ+33Q==",
+      "iv": "ltbYWolAfqJpjGiy",
+      "ct": "nxniBsX0AeNlSg3i9fhPoCRRjEHwGnCgPjt5UFCF+A2ZVg7bKibffjaLPxQ7ZHQxgm4msUP2DgzTLR/ULp86eG9+WDAFebgDVA=="
+    },
+    {
+      "tier": "9",
+      "salt": "YZSk2z6gVxYgkfXGyyM7rQ==",
+      "iv": "4StDtm62TpPoFmx6",
+      "ct": "Kuxs0JYObZ2GApPIBHIRp4mwkoXx87PcDm0B5aOVcAaNRX2kiA3zzWeTipFumVzgNgE6kljnA/w3f7GTAxxklKBbQCG4r48jCA=="
+    },
+    {
+      "tier": "9",
+      "salt": "7O35NSZ8V7iNGJKDgm/OAA==",
+      "iv": "dv5Eqrxjv+hKAi6Q",
+      "ct": "Oi0ootTaOoBBHKElhcAONlziAfmANGPMizfPGbLDypMuuilrMRUAFrvJb5L7/2fkw9a7KqrAS3F5U2+kYm6oirwF+gPPk2egEg=="
+    },
+    {
+      "tier": "9",
+      "salt": "Y4Y8hORc9BI9kZRvLaEpaw==",
+      "iv": "Km+rzPh+sLeMjk3K",
+      "ct": "fLnraCuGluiFJx+NKv5bG4awISlNTnvF04ZtvTWwKm9LF4IyHU02nPVU2G2kGY+kRu8JurXqGsNtw+k9N22B3lqSdGqam6rp7w=="
+    },
+    {
+      "tier": "9",
+      "salt": "3tIkIcRrJ/kgQmykMLtGFQ==",
+      "iv": "EY9ORmOuN5Jljx2L",
+      "ct": "PvuUW6bZgWbHzMQbENuQ+ZF5/10VKYzyRU1+ACIsOHnJD3+Cplxhrxr7B4LPqhzUOCDZBXsY8f4NVSA="
+    },
+    {
+      "tier": "9",
+      "salt": "yJnBS8PpOEB191wNU0pgbQ==",
+      "iv": "4DhEx0XPIG1cRI6x",
+      "ct": "EquqDUUFCY6PfbkKi9V7QQFMrOdOYd1a8ZJJcy8YAO7ogBVlbUCZMSGOngY5MuN0GSq6ZXYg/mxDtAV6yHodEXUXT6Y0RFi0Yg=="
+    },
+    {
+      "tier": "9",
+      "salt": "e0VrlZSThYnv4P0Ta0p99Q==",
+      "iv": "12vZnlI802ywlvjU",
+      "ct": "Xq49+kV0bv5zhIe993JfdKM0jHXVz0yTmO6Ss5uzd2kUMmTvz+L1RGllItqtN/oSLLTjjMc72e7iOuQGCCRRur+Ibp7x06qCmQ=="
+    },
+    {
+      "tier": "9",
+      "salt": "q1KhgCM5SHshUkotXzzE1g==",
+      "iv": "ohZ127bTwhThx5qk",
+      "ct": "bOh8/fqw103GuMj5/IsYhZOCS74wdeSJNoN3YUhYaFMLaKs5Fw3nGbbJJuCGRyW1LZlptFe/r0I6Cge8DPHngU0ghDd09MNcnQ=="
+    },
+    {
+      "tier": "9",
+      "salt": "xzWp7vpiK2B5MvMT0j3KBQ==",
+      "iv": "ALs2x2P/cy5U0Evl",
+      "ct": "KCVf/EjSmmPzayi9PrG562NJNNkbD3QgRYg3cY3PlfTWYA3/iKE7QVdVg3bWE1Os6vYLj46wlvlOaw8s03mVCuBUetrZ0G2l6g=="
+    },
+    {
+      "tier": "9",
+      "salt": "pGnT8KyB2wOn+QsS1p5hBw==",
+      "iv": "lxYLXnHSRNHdnjGW",
+      "ct": "zYR6lc+z+XHCUXtV8nEYc1Z9oumgqE57ytZQXEdF9azWtlUPwn6ywKKkLGzeEZgdhkYfIul+q/tJKSq9WuIQJ6pHhASC09i1vw=="
+    },
+    {
+      "tier": "9",
+      "salt": "iErBlsGua5X+jFq33po7kw==",
+      "iv": "lgHkRoD4Lfg7zEb6",
+      "ct": "T/CF3gHglveavGrxlUoK2GG6yfUEWDosV485bbPkPIp8gDWzY/HQxLAk7jyTK4SADh+1kcUv2eeJQ8TY5ivJ06uEphj3GoDuAw=="
+    },
+    {
+      "tier": "9",
+      "salt": "Qn9gRz0OC48Cud7W1mPv3g==",
+      "iv": "huusF+JCe5EDKf4d",
+      "ct": "Mn367TgH/Ef0hlXxHxoc39X8fo9o+srQsFcv1tvoPWDEu/sWPSyJUpfi243WgaUrWsySuh3Yk2tow65ptPeub4PDnka9DKksZg=="
+    },
+    {
+      "tier": "9",
+      "salt": "lcVqMkOnDJfvX/962RMczg==",
+      "iv": "jIJr1M1ciBMntW7T",
+      "ct": "wZR32aWTxN2gs0L1SySYfjzl0bHdjpxJhwftKFblS5nieVF8/aMAtYzZw0f+hJXAhT/de2m+c2C03aamm7VcbiEg1jSqb4/UEg=="
+    },
+    {
+      "tier": "9",
+      "salt": "8AVI2cisPDJVavXnKwf86Q==",
+      "iv": "PbClbLwZWL+Qcv5Z",
+      "ct": "eJaHPG1J2q7enbYdxexTcnmRnFMFxSCvIc5w6Jpi54vkI6HcEIiV/tjxbIk3cFhaE/EjWQyyCXMad1zS4enSABd5SULF/QkzCA=="
+    },
+    {
+      "tier": "9",
+      "salt": "K/QycOnOiRu7Ufn0/M8B1A==",
+      "iv": "d7YWupp6U7Cjp9WN",
+      "ct": "QZ9YkFJToNueLH2/pQI2yLUEXQBbegp2qo3C0+kMqtdbcT9zYSyOj9GNtKkSc0IYjYPce4je89FIK0g="
+    },
+    {
+      "tier": "9",
+      "salt": "Z4LJ9AyZQ8PqE56xWvYYuw==",
+      "iv": "/nSpv4LogY9pj1YN",
+      "ct": "mhEH/7PxaprHjg9RFX+X0nlmSKJjHXgx2efdIKbQC9gyi+j4HA2WEh8mRJrv0SMOeUwByxmRnfkpLxzk8SPEEjfLXa7n53w9bA=="
+    },
+    {
+      "tier": "9",
+      "salt": "tTBfXHG8zWddq9WzUs0qZg==",
+      "iv": "C4iregZyxPJ0+hNN",
+      "ct": "++Q9WpTEqImSvBOsWFD/+mCp1+J37dL6jUQV6/xBn53IVo2HL7oDKmN6yOYWXysJoxbCpwFuiBVbRTtbvtMtUjlFeaF2eiMDLQ=="
+    },
+    {
+      "tier": "9",
+      "salt": "pgsMfpOK029/x9ZDOuHLCA==",
+      "iv": "qwX1hYtUc5fEBsCR",
+      "ct": "s82UG1Lh+n7zI2jjKdz/tXo8QVt5mrM2zaEpur4w4bVgl8/gO2t8yCs7haiZIdmxi+tifQfupucupqhlrR4tmukrjPj1atRqKg=="
+    },
+    {
+      "tier": "9",
+      "salt": "goihsfn67DT0m1L3NwzEwQ==",
+      "iv": "MY99HtJNoRLg4ZSu",
+      "ct": "IAr1sHZ26ATn2IAG8pjMujDYbykl/aHKXv1KJ9HwRRvtX99o9Mm/b0FPl+wrK7/qBN3NqoodDEym4wlzNu4KvrZ7HFARp2oS3Q=="
+    },
+    {
+      "tier": "9",
+      "salt": "1r//HZluoMz6Ue5iPYMiNg==",
+      "iv": "fCIsWph583RJBPw0",
+      "ct": "Cs5HmfJ7jluzIKFmzP1Ek1/hsJJqEA6Tzj/Eu3+vqvejGmJi0rNvxaSgq8y8rcLv9CxZyVrfbODOSGfi0PYckNBjFGF3Lw7A9w=="
+    },
+    {
+      "tier": "9",
+      "salt": "djI7Tz0lPeAQhkSPf8SoJg==",
+      "iv": "72MU67R95BkHXG7E",
+      "ct": "lxGZw+iwdUlgde+ooo+XfqmAGkaGwF40zj2jwrxx4CP1fSa6garHNkAOtu2dhDa3EDQFWpkAC+q7e99eJ2zInO7iZm6q4HkBnw=="
+    },
+    {
+      "tier": "9",
+      "salt": "4/mVg/7hTx52NMc9EQCM1Q==",
+      "iv": "sr4scD7kmM3Jqgpj",
+      "ct": "5O0j2pKKjdYdp98fNhKgtQlI8Yafk4YkgOITjljdd+jpbAWJHJB9bNdeGvyr0TvynssTeTE3aCL7jwwgAte9kzj2l0gTxwSypA=="
+    },
+    {
+      "tier": "9",
+      "salt": "80aVdhKKRIk89gVInvJjDQ==",
+      "iv": "wPgvWhFE3WvFy/9r",
+      "ct": "rZyt9zkIUCkG5a+jM9vsNBDjL+oo+0FG5AinHrQqXGHxx2CSvNvzoD2UvYXiyzI9vGFgltcF8wwUxf0lRsDKBFF+ZZSJVw9EVA=="
+    },
+    {
+      "tier": "9",
+      "salt": "JqI1qQ6Ge3tweaphP3iYWA==",
+      "iv": "AINTfr/QsgkmihLh",
+      "ct": "y3aVWZkoOT/Ipq65vu9cgTWiYYWXXuoF5gr224dLDXnvWtcW/jvlDsIFI25cqI7UdFCWLjJ2RuUO/EgmtKWssXr0HIKw/fiZVw=="
+    },
+    {
+      "tier": "9",
+      "salt": "FFpsj8bVstcKY/ygQnYydQ==",
+      "iv": "aszg20qjv5d3fjgD",
+      "ct": "7FhCOmcOxLg2HtRSviGYGjnwcTDk455pHK7CLz397ENFT4ElXaQ7v/khCGokeVnYMjsgK50nVRgSnJcQ4FU1+ENPNB5t77Bppw=="
+    },
+    {
+      "tier": "9",
+      "salt": "59v/m2Sjh0mF9V8ZVLZqdg==",
+      "iv": "NG6dpIoIsdfcrtHi",
+      "ct": "tPLPahyHARam1MTDnBAqkiLrAITp7z+y1dhg8wpUHV0AAyj6vHsLwAe42grjATZWtT6tCsFlZ/8f52tzqcQSB1XOU4W0x7wU1Q=="
+    },
+    {
+      "tier": "9",
+      "salt": "NLM70SrhZ0pzuXR8h302cA==",
+      "iv": "PdsGdqpzoSoSHGb3",
+      "ct": "Fw2pe1IyUSBBD8wJL9mvJGn6bV+yqk4JOFg3aJrC9rksLNzPBtKvNHgpqWcLZ09tpEyJQFnrK5Ii5QCv+OQanCtMotiqqW+mQw=="
+    },
+    {
+      "tier": "9",
+      "salt": "RVcTMX9BWL0qLOUUo119/Q==",
+      "iv": "MXgQRZaTF86eI07P",
+      "ct": "iMywZhCRWGc1+i4Os6huZp09gQipHWWQMUh6XUivV1uL1OxEz3eIUd4LhwNaERKAb5cMmlPivfvKzz3V62+q6HqLN5XqvxTgaQ=="
+    },
+    {
+      "tier": "9",
+      "salt": "zJk2nXksyn6s6LocaUjUoA==",
+      "iv": "RlSSrWmvWRNRyZTU",
+      "ct": "pp3lW00+P7vKIqxdGw25qhWRMvEg//M7soUX3Q5QAnZ+D5AAr2o1G9h2zH1jQIkXeE+uMDJwBrfqiMHxEINKJiziMa+a7aAhJA=="
+    },
+    {
+      "tier": "9",
+      "salt": "u/cjy1xrCx5rZz/81YzUHA==",
+      "iv": "+tKaOhERTgEw5xtH",
+      "ct": "uD3Gb/HQFWw//ywEG69/BXAGAtkXt0rk/EtVUWWsgK59g6LlLkNTxEhhXAHuy3jYmOWipk+3PnNMffJ2EZ70ad3nJN/zkiCkEw=="
+    },
+    {
+      "tier": "9",
+      "salt": "YNu13v0NU/jje6YVc+OORg==",
+      "iv": "xtcOd42auQ8at6Bs",
+      "ct": "3gL39EvHgooIezv8JWI7FweweB0cgJWLXe8eAUoWOd8z1CuU4Ul96hqIDTD1P59FQbF6DwPvpw44ZyGsR6VyMEribCSwJGWO7g=="
+    },
+    {
+      "tier": "9",
+      "salt": "VrZFwoBJbBp2JhFX+J+2Hg==",
+      "iv": "bUlt0cly573snF+N",
+      "ct": "C9CX90Hegry5WCpc53emaC6u4rsqC4rnZpb96a0+LIrj0cQPWAXr8iXtXwWSPc/kITfKNgbrsHXn3VumVmNFkCb8J0e21MMYEg=="
+    },
+    {
+      "tier": "9",
+      "salt": "qwA2njstiwPr6kXW3KAemg==",
+      "iv": "fiLUk0Dj9ondo3aB",
+      "ct": "C1FviEoHyfOZssU7++0tooyeOmZvaSJ8Xpb+4ZHcxpFLlB7oVUQfaWgK6/0IWBlPmYapKnzVWH28hHYUMAJ/EShvIqmDIwy3Vw=="
+    },
+    {
+      "tier": "8",
+      "salt": "d+1Q0PvVVgd+YqzhmP8Nkw==",
+      "iv": "mgO/ddiJ16Zxs+X8",
+      "ct": "d9+X3DwWcZVRP/AH24BXfumXoR5ZDDI2wZ6vwzlwWw/xdNbhEsXIpC1Pfrqab4xMyjjZa20AKFY5jqTMuFHZ3NQ9aio7ulTRCB7yVjJ0v6+tUqr0G8ESEdMYQFLgbVb23H7m88EPlUXFsryrh+uCRkbiyQ=="
+    },
+    {
+      "tier": "8",
+      "salt": "3Oilpx75GqGOzYnDFH/Qnw==",
+      "iv": "fPIMbA4x2FkpGE80",
+      "ct": "1tB1Hub1d/Vz9BOZU/A1nQcuIUbUdFzg6xirfVnxNK8A511lWMjDaSGp0ASjJqZVP0WnrsBKMxQB7/tbK6rg82dGr8cpcIYTGTNYqg5ZCgLApr82WG1vUk+GAGXa0RN8id+VRqNdSaD7cQhvWU6zL9nk7QqvaGm1kI1F7Qvw5B5U"
+    },
+    {
+      "tier": "8",
+      "salt": "uPRxKwIk3iliH/8AtIK6OQ==",
+      "iv": "Us2Ea8JIrGAyZsSV",
+      "ct": "2GC5FQAVDS21cfhwkHPSeZ8NH237GW9TroaXivR47Z9+U0UvdzIKxti39NfNjuvmQECBcbFTxsjsxFOeOuYvbbZzy5sLTFfk8u1B3iBl+p7v6NO5pXK5a8ZqHWzOLGQskw8W2R4eJLFbY/beHI118pf+fMkXkOMzEaMmk0JSmd8P"
+    },
+    {
+      "tier": "8",
+      "salt": "IrSMSEWmmQ3ZaKSK73z5OQ==",
+      "iv": "/YFdnN08Dsc0jYRY",
+      "ct": "1hc0Ci9NyOwzRXT6gtvs1tLzHVjq9eybnuxlHjzXWNRZXFCF2SuWrmJAnIZbI4qw5N2Yz7UGjgEiuJ+6/yf9KkP6rE9M54ZC63/tZ88rMTA3POtxZVpth5qdmdHQObgCQaSMRnYe9c8lnhLfrmbLenFhI5iDik/hs0DP74TIlymJ"
+    },
+    {
+      "tier": "8",
+      "salt": "eULakcuEJkpUGNUrqutdsQ==",
+      "iv": "d2yZpm6QaAAPOP2+",
+      "ct": "/dShXVSlzq/89nDPsTo/IZbcm3eXm30OaSh2ZD0YEh4WcsJE7pvH56shasVJkFuri8qOdy7YhMZPxgo01NBb4Ndpooaba+QzDAeq+S84AW7qJJfB/8VGtQxv52bQqnMJVm1dSU0nPdq6tJ8o29pOTpJ1XF2t2eDUR7YbR/5RgQYM"
+    },
+    {
+      "tier": "8",
+      "salt": "7YIqzsgwuaH1uXv/dZYqNw==",
+      "iv": "RB8k+W7W2aRyB0iM",
+      "ct": "xCaL97znATTgG+iWymn+hEf9XdHrfMzM6L0xaJYf5JeS0VDBOw/mFTMWsVXQztOLjkMdlUUrmpBFq2eicuhcOXfhNpNjKIlHGGO/32fn4ipisxtRvcwMmrM8j9P6DnvSoM5tTjJBSdNPVP/RgGQw6n8jWwGp6Pzys44HILkycYUD"
+    },
+    {
+      "tier": "8",
+      "salt": "Tv/gogk9LUZj6teYShKXCA==",
+      "iv": "mCY0yaDq0ovWahAl",
+      "ct": "Y1KLsjPjtdZlGBLsbQ73YxvagXGDdSnTRhL1yX7OunwXUw2ouWdQW9RowYSKT0xAMuMTpJdAgyRM7rUw1d0Xf34EGGuJWRoa3ehjO3aCmvI20CPImFXcDuWe6wvTHt4RragZSpAXU9x1GMeY/SPl5bDSrQCddZcPEeJ/kZKVU1FP"
+    },
+    {
+      "tier": "8",
+      "salt": "PSHFmrDdznQY9x4+NtOXbw==",
+      "iv": "gZR4dYvhKknKg7AD",
+      "ct": "vBtY6WkuEY93jcOja5KctNGiuyQ7qX9laa7d16RkUNply9jKqglBW2zREfhwD7p0BviCZkdK40pYEYhZM4TxGu63SZZ363tQ/IBGceC16dOcjAVnKrjFe679Z2kprAeLJw4gZQFvyfv1pRCcfYT3p0bXH+czfwq6eiCtIISJNskS"
+    },
+    {
+      "tier": "8",
+      "salt": "u37O7vfj1RIz4HfaFDWR2Q==",
+      "iv": "jjXyf9p+d/iEYhbw",
+      "ct": "5Z65Lo+73gx8I3dLoHGqYYAorVW2Wn736/iKd9ORRlaE51oh5nA+7N+ef+YAYuCuyFXpZM2QPSxUvHKl+eYpr4g3m7NXq6Esz/cGwqACsPcGQZoFJ8dxhD7soJ2X8lvhznRl268cQuuWqCTOk4IX4A9VTnTEmwadb1XakCVPwATJ"
+    },
+    {
+      "tier": "8",
+      "salt": "bvv5rsUiOmcYCadTPeglFA==",
+      "iv": "yMWLJ7rKzI511Lz1",
+      "ct": "jKE7QDfndXLOgUv278RHnW29QS+lRNAwkhNxK7UQOQ/CN9aeVAKZvd5Gb+zHonyYWsKaoo62zB87CIzUow+Wai91OLX+zbBrBsSGt7BXxdVdLEnoSyE89gZlyodGTLv4lfZdjoHh28Flk915rCPXiNxHo0RTEmCdTWka2UXvQFBK"
+    },
+    {
+      "tier": "8",
+      "salt": "dEi+gs6zEmbdytWQquA9vQ==",
+      "iv": "/B2XABszlVxbnqu3",
+      "ct": "9tAeIjOInNv6VIaiaTejxe5DgaqD0ls+mgYwn44/ra018HvTVEFIt9WWS81xcMOBaOPlaHzbNlT6tIHlL0IjLXoHyqPC/9zIyrTiJuhwrHLdUiTOSZAlwWjhiD+2M0j72HCoWyYgUntPQhDp0jBopSWw6Q=="
+    },
+    {
+      "tier": "8",
+      "salt": "kdTt+Unpaqxe7hm29H8Gqg==",
+      "iv": "d6C7AVPOSOWS1rMH",
+      "ct": "3nobKEgIJmpGsYeCYFuMPmj4FFfDuJYGtAufFs51HL3nXi89b/i27sJyUXjUrD2W40oOpCNvioBDJ3PBfKVSyyM92kSPic5LzNDuLiRDl45EwOxodaDwy85jomYZc0Pmm0ogkIudUL2Fe8qJzXqGzSyVRoXiU4XC8iGOD9DcUl1D"
+    },
+    {
+      "tier": "8",
+      "salt": "OjGzItEVsixCh81h0o07Yg==",
+      "iv": "A8aOCbDEt5MZD0Ux",
+      "ct": "9NJ2T/Koq9jLRbUev4Fj9zCMmtRQOrbF/1r3TxeM4lT5yuMdsfxtj73n/tyLamNjYDjOlONkcGmxd4eC7Npyj7bCiEGRApwhJWhGVEM4zlYwYikBmaQdc2VF3ZVfMnk82qkP5jG02njb4RdZi7jDMloKR/nYVJ6i/svlQm3SOwk1"
+    },
+    {
+      "tier": "8",
+      "salt": "3l1JL+c96aY/ZkKBCe7SVw==",
+      "iv": "p94zXvcGqw88iVP4",
+      "ct": "tvVCX3DtCAaSD2OtDLYbG14wloqmbGmhdL0eI63PH4kc4eUWNKVoplkiq0lrU1nscOtj+AlmzhtPuMP97+/Bv0FBUxv7JXf5gUkcWdME1/D/X6l6Z/AYQP8Skbbq75WTpwtd138Y5BTulnj5LhqEjdtawy9LB7NAfGPZe6MsRPAF"
+    },
+    {
+      "tier": "8",
+      "salt": "nz7kzw93ldAAMGucuZMq9Q==",
+      "iv": "FhCTZrLaU+o6MhlU",
+      "ct": "4KaD+3R0oiDmSFjYwMviKkpYdF2yzqL2Yn8xiRRGosvz/eIFvkScqrdtKEeMLdFOwJlVF4Q9JTPLo9HoWRoGeRcvzrjNWHZU67Gfk/xmMEWzeNWfxwYkXgmLfdvihw29AfpKhGaiamCjPsI0XfVdd2dOMipvqOuiS2ai0FPYZiBd"
+    },
+    {
+      "tier": "8",
+      "salt": "cP68zqrFR676aaSSIYkq4w==",
+      "iv": "WhoJq7vh1n/MRzzy",
+      "ct": "mJIq1/Q2mTRB2EYWNquJ51L4oBtuj6TH3f1FQdx8fT6ei3KYegPfnl+AetLcO2kZGPTdL/O6RCquKmmpMk0GMgnAOvuWUGIAd3OKbd47F8yRRaxxkvfC2THcN14RZhXR4vE6LU1WBLddTgwwxf3WKgCS0E1XeHaQ0v/Yi40iMXtM"
+    },
+    {
+      "tier": "8",
+      "salt": "tdH37gZo8DyOJRdQ8ZAwpQ==",
+      "iv": "Vm6YO+2/+ofw9AF0",
+      "ct": "NOyhVXWoarSaOi5yD8LvXJEY2a7MRKcBMJ7kbBoGautydy2hsziLOAqZ+46yI+Yj5Nr1omfUS5d1BpScWD0pJCnax0tIkvHCF6Xfwj4ZMfwLKRTCkUuf6UW5WkrczjXZ4VrgH0ocpE1KCjKwK22nFhEVuPReuC3oHxmQmmF6fYgx"
+    },
+    {
+      "tier": "8",
+      "salt": "hKSalBC+hayqea4XTZo2OA==",
+      "iv": "FHv6+bbY6C1vuoRi",
+      "ct": "fUfXFwDOJcjX3OqI791i48HwxaRRd/oJMXhJlIdEgg4MaE6tUlWff59XMEHuEovlc039ZtssXjyiHWEcR8XmvOBUhYWhl0j9G4nv9S6h6IqvAiR0pa20uYVo0KCUzk4fjjGzRYQVEV9rCcyYQ6adc6HPPGZuvpDR8L2aqkxARmsK"
+    },
+    {
+      "tier": "8",
+      "salt": "rl0MgFoi2I5fwhXdiEmzuw==",
+      "iv": "W39f9wP67QPnhE2o",
+      "ct": "hkgb60hu/vFEb3grpAfTNsMrwFfMY2mUutqXWYkD9dB5vEsKhTNyZZQ+72rF3pgziZseqeLoWu3PILj/RTkO2PqHr+o4TaD92YLBnyzQlQ9X6TisytV/RHZVzl0eP7RomuywyJK7GA66bw2HVlZQyoNkLkLnkkCs7L772M8ddYKE"
+    },
+    {
+      "tier": "8",
+      "salt": "0wTqWXmQR9DqtFeHh/lydw==",
+      "iv": "EdsLPXLR8rK6MvHw",
+      "ct": "vdyoogsaE7w4EU4/jS6m66JryXm83kcrpainrW8zPvyzuqpdRoJ4w9Yft8NwLeCcT/0ap5ZuzwfvEm/EBXP0M8ruHtmJzWLMDpv/E8cj/4XncaYLT2jD1xmYKCxy1fwKXq2Wke5LZXBuhf2tZCNyd9zEyMToqN4MHki9DEDPdPy4"
+    },
+    {
+      "tier": "8",
+      "salt": "budh83DE96u8bUdXazpuaQ==",
+      "iv": "fUyyI7IxkfcMIUsp",
+      "ct": "M5tvfNaebkC5ONQ0TFe/Cn3UyZE/0hYBF5oYELXqG8yeQcmk/KSmIHSTGPGswj53rzimPgLGfB8K+5I1Q0Q2S1oTYsOnseb4e2Q4jZar7zrsCScmCzO0f0cv4TNfQvRlHXmNmS4kKOcFrFn5xr+OcjqzbZiZLjKepIR0kmSMRtMA"
+    },
+    {
+      "tier": "8",
+      "salt": "a7eNr4NyUT0sCG5qAfuxgA==",
+      "iv": "NF6+27FYXf8GZ0V+",
+      "ct": "DTusFlk8Rj10Jd7OWOHqhVfIiysOJhYEkI9xtopoCvs+l2UqPIE24qtDnHJHdJ/89vmGsNkT2noiDR/E9PBHGrHFLEoKHcvMjpmt3T2ryP1A5P3TNC6R0nc2/LmS5ilzNl/WS0HIm10KGDrvLcYAbTTXQeFY/+PO0qr8khVJw9iP"
+    },
+    {
+      "tier": "8",
+      "salt": "6bGd72Hgmbncf5+TZQTWEA==",
+      "iv": "0xhsMHbeHFt0BRRB",
+      "ct": "bZmlUHDHwSV/Fv4q8ee1ntR05cHQFASzg9XEdINInpCb2TiNKam83TJJJd3Q1sdRT6+gqFWV2xP4P0An82aVsRMn3sh8s13/NWbo0F6d3hKB35pqdcOTa2ndzlJUBPOhGhbOjF6O9eIzp0tkuQZK7k0CxwXWUtsLflaJHj0wWr54"
+    },
+    {
+      "tier": "8",
+      "salt": "MRq4RbUfiKILmff0mCAbcQ==",
+      "iv": "RGcYjy4AwbXzxsI+",
+      "ct": "9afBA6GlfAo2L8eHCQdcVvifR91iXHOr4ELBMOYV+qcbasfhpBYKEsUxnp1kN/4PKS9O98d4azUBXzjoCf5zkeFeNn9JHEVD/C83XiVN6/vD59rnXqw2QMYuSF4Ybposlie3dCUGZUKp3EBFFqXDqxovsQ=="
+    },
+    {
+      "tier": "8",
+      "salt": "grpD6pnPGqkn1IpBCXOmaQ==",
+      "iv": "QyRwDpwBky5XTGkG",
+      "ct": "vm8NLDpRZ37K0FLH+MjLePxPnqeb5Rf9UkXZa/sCjy687ifie5AeTgx1tbnODFHpiHtlm4D2lPMXmxsuv8Y8R7e//+M+fS1ZR+P1a6ZCyt4RmG7rF2oAtsGpWCG8rJXrHLJBrIT8BMzIK/znJn0NN9th8M2vkr0Rvoq8GfDCms+i"
+    },
+    {
+      "tier": "8",
+      "salt": "Yy1MOi1rCwNZhYbBq8r9ng==",
+      "iv": "B21GvbecuD7Ivk0P",
+      "ct": "Qf0u8+Bhxc/KX2qgtRO7OTTnf1uufjTWLdKMivHellm/9bYlBBSBOpFsymdbUMbcJ8vTl9Xmf0be0y1N+tErgn12dpf2UFazRI/jkNLhOLpG62QwxQ0s+Hdk36e2MamSfQ7Tia02fm63Mwy6Pvd+5zBt3c9pU11B0X3MYUuT3P9l"
+    },
+    {
+      "tier": "8",
+      "salt": "mWXJSo5+tsxSGJhpX479bQ==",
+      "iv": "lFfCryWiD4012OqX",
+      "ct": "HW32PROid4REnycte3uYfO/KLI/oK0jVk9JT4BJEwdZpXwxJ7sLS7hu0oexxPrHQ69lbWgIA1prWw2Bb/hW5eBuxdpq81MB/dIDe4Kat9N6VlEyOT6UUghdwChPWOtOqphcno95a1hLASjipgRvkx21C2D116Q1IBJoVq4aKHn61"
+    },
+    {
+      "tier": "8",
+      "salt": "ToCEJq/Wyt8Wsv4vlvXw6Q==",
+      "iv": "HxAyDjXP88aUUkMz",
+      "ct": "Dzp6l57CyR5peMmZjUvvrVpA7tLYe3i3YzggRoeZJHk+X6rkPeaqAUzrKOWdxOmOASc/xnevOXlELwD/O4PJdUzNGb16T7B1VvLwt3Z8s2a004G2WVQQ7cI4MZqQPJo31arJUZ5nm6zm3Xv8aCaCe02Zr9yj+cb0p7in91ecE4hg"
+    },
+    {
+      "tier": "8",
+      "salt": "Tjm9CfodC/qm+ZxtDOQ4lg==",
+      "iv": "GxM5dipF5OXLR0Uc",
+      "ct": "mmwVznENDP4blcxSQ/rH2fFOkj6bCQb/4evsdqHWp6rwHUR+Hlv1abMspVWevAxxDrKPDBpfjwnn31jK2nyX/M9SGklJRXobJ9KvL9NzB4A6ydJJYq+J/Urod0KphDG5tk/HmhiZkW5J0bi7T1iNq4MOO9h8Fncw5XPl6EQ2eANm"
+    },
+    {
+      "tier": "7",
+      "salt": "eUND7k1rIQP+D0HWpousLA==",
+      "iv": "7dB1kzqp+NyucEeP",
+      "ct": "FEKjfNVKMJSJn2jHx5r/ENF6iOpj84NbuJo9biO4oOI7wsZcHsiCjmrdymrKaQm9XdC8khcirsYiOlhczozuL9DUPN/4BsZwbOL7N98dPMhyDxoFLU/aPtCPyeVBFKJsz+b5W1sygAP3K7hLFdONMsC4PZuu2M0zfhGPpkf9fffMlkFYr5eWfifCCl7h/2+x3FCXTEHREX7qZ/Hl2Mq6XzCOCYVTTsccZURyri2awEVy1b+hyEVJQi4="
+    },
+    {
+      "tier": "7",
+      "salt": "HZNfrSP+rLhM6fqccO2jQw==",
+      "iv": "MeLNbTPNqlLEAme9",
+      "ct": "ibYtOJ6npuAOEjNL076uUV6KNEHo1GeZhJjG+pSAnylz1+6xDTcBK3CwQ6yXbEhhCAR02qyyiPUWzGpEOVrI05xqxZ+EJmFMGXQTHlk+GvirHaR7yU1IHyz1IxODX39t7kCPBp6qhjqdwIEol3Bk9qiq+3PLcxnqHYfGqW0loM9yaFN/mV+MPFDIbeJrmwrCU2aCPhaNNzhPrpVC8H4xfGTKrPGsyGwlhbkTe+GBvNKdC51Z/EdR9x4="
+    },
+    {
+      "tier": "7",
+      "salt": "dd2WBoO699a2Fa6A94lgAQ==",
+      "iv": "6XAfT9+NRn9HmiCs",
+      "ct": "whqJ9rDQXKzJZCJXFxbEa0qsSNt7XN4dI//Ebjj97PmwsVp7tLAogvQkZYbFGgnZRZw5NPXQ5d+53z5R3+n6N3//bWjZmsL88sKAZDRPUTI3b+4TWzGcWrvEiUpa/6edjEK5anpKvNrXsOTnIuDA0DnWpD1WpZSqr770cPHlr46OAnW+xwLXvXq5haOKVgK88If/RRqgMC2uzjn/12mn2r5oiSfU7Wf+AqHhHYvtp3Nwyi6QYpKDi8I="
+    },
+    {
+      "tier": "7",
+      "salt": "oXL611B2W+ZUaj3LxOHaPA==",
+      "iv": "j3EuIHvVjBXhLcYv",
+      "ct": "snSJ732wyvm6/TAtTIDXBHCvGyaXcPI0wUIF9DSgbI33kookUzLLKD/HPrDYkZdrcpNIdFfcuxL4Iovkto0oPK1RzYQ/h9ZDn8e9KzWhVn+HP0ObKhIW3eRxzecvPtgUB0xvMBwrJju34AtOYpVJ3InvahScewHalRkTPrfyvIxsj+b4pyHEY17OozPJqhJDDmqwNAIyfplWiqbusdFONGEdZf8JBMqJo0ehGpjGp7qCHqPsdr5o7Kg="
+    },
+    {
+      "tier": "7",
+      "salt": "IPo61EBw8MGG/7t95loLfw==",
+      "iv": "K3DZr9hCKvJrz+VR",
+      "ct": "KBAnBVE6Lvd4WZVuOZIT815KF+lZ+Rvbvkz2545zk3IpjdK8Bvb7m3JwbSXKVStD1pXh0NaFnBglF1YhcTVdsgQZPsGRjwmCU60fIZ0oSCOQ4P3KoS+F6i7GpFPh1kJhnHrra+6sY8cCK8rrxc+6SzUk6oV8kXOz26v+oX4xf6URtGOaoVuZoOUVw5ZU+peA0xr0sH4Hl5YYDbKHhCZwYVfvJhG/XvKpK243OB3RVUuSyH7P+PCAac0="
+    },
+    {
+      "tier": "7",
+      "salt": "Hh+iHEycaNVxgxWvyjkoBg==",
+      "iv": "PpBRt9JHUKUfR9YG",
+      "ct": "Oes/XwDBc3jeiHl6KhqSoU6bavU0vip9Tu0nCVWqZLfJU2LayvjFzD33/+kmtoYjLGzSncefqKOZ9JnzuHyZPuDPDnI4UpvcAEpxZDQz534XHcwEtPOcrmtZ7DCdpfBU0GEeW/FWVP4nIF91Y/bZQk+JAbs/wpGXj4hGfT4zJpbB33uXzg5vgQ7FWOEtTVFXUVHNGs/7me11sShLsplC6GXIN9XzJRCt9zA0qD8azxLYReaCQo23b3o="
+    },
+    {
+      "tier": "7",
+      "salt": "xlqSUC3xJXBtxi7kELE3Wg==",
+      "iv": "kQQB8lQOXe1Ks3fB",
+      "ct": "+Ray4DXezUJoNBh4MJKl5LfBIdfGfGol/i1q6AM6/oKXskcoQyrjgTlwSbrudM2YVQlv8lpnrm3AfF6qT3rCKH2pRCVMyp7TUF/PoVWSzxcaRptyx6FcJV1d9RSw8v2A4SxoLoxMmTe4q+nVzOq/H1S0UBZ2N+9ELtRnCEA4OlOrHkHI7V+f212Rsty8RqoVLy2tZe0HX7r6bEWsgTmODwc7Db2/S655QBwfx2/RBrwbxnz2KIpPr2o="
+    },
+    {
+      "tier": "7",
+      "salt": "U+bU8sA6G7KknMzWjaQ0Sg==",
+      "iv": "5AOQm2TV6E9sO99+",
+      "ct": "K3yrKyo2N2/tUa0VH6Y2cms9oj3SYFjQFuLnGYsNNHFZ/DOlHerUAkhNoUcOhuk4wXYpHGXoJAgqkXusy5TZ5PdCkAkWOPqMu4kUD5cUi/4wJSMa4dNWoiRqTKIpkndRxHm+6OqgWBEtz1fJ4ncCe8BGoqaAAlkuCjLKUf9qmPo4uj0IM3SGf1Kg6gC+bACD6UdGiEp+7inAYjj87qyzkdWFQ6elhmUTLilAeJ5S7GJgxBVATCIo8kg="
+    },
+    {
+      "tier": "7",
+      "salt": "HpKEPiqmQ1wp/s5giuYAjQ==",
+      "iv": "h9AG8ByWnPz7aKjg",
+      "ct": "TE2ti3X//8FgElGM/VM7Wc1jrPxtaIJs81DGhAqaOuyKeggVwjDdrJVTn6xDaDik87qn86SA3U8Da/NACwxhZRPhWuxBpjDK3QF372Uk6Hb1ZgHjqGk1bwSkcCCi4FNxLdUhCXAMv4YvjJGbsbR8+AbcQizIHs9/y501/LWRo+tOjb2fpBrXS1KYZYDRJWFTDRffpseBw7PSFBHEvJiSaX7xiRloCR0pNS+jh86VN1ujsvB4K3SJgYs="
+    },
+    {
+      "tier": "7",
+      "salt": "6gqmhXi00jjtMkDdXNsiLg==",
+      "iv": "2Dm1kaU/JZqgsMzb",
+      "ct": "ZGhpiKmIfKIwLn6WafUUYfZt7NSL7NozFILygWhN1T0X7cBKa1abP95SVrPMiIubRZqnlMsLts2zYrF838laLEQaCUI1lGHo5fbdpTzoJhX+p/9AphYj34+kZVPlv8c8fvWQ1GR/w6S0zt2kP185bIeZrUWbugwizFOg3wWAeKJ6iyNZO+uq5KKpNQ1HTx2kaXokL5Sm3lbITYlslFoR7B7CnDOcbfQgUBtL"
+    },
+    {
+      "tier": "7",
+      "salt": "hMBtu+ICPbCOPEJJE91EUA==",
+      "iv": "MoH70zo4eiHIOqa4",
+      "ct": "fSvAAWfYq89+gjBYXSQqoloyhQDgRVtCuDNDO9SIqcBAciQo4TFNwXUlPdd03bURlsxcVbWMp71fFyRltHGkNNBSK3ouqETckhIn9za+6+tWurRSQr0epogQ2S7GN60k7ICONI6TFiT786BAE7nflLtjxhNfZltNWtHybbGwTCgpwpxPWlIoJ+PBAsk8dGEpTIL3Ij+SGIJeZCxr0fFE1/zBf6IlWzKzV+LOD6s9p2W3t7jMy3Ouh90="
+    },
+    {
+      "tier": "7",
+      "salt": "47/dzYv66sS3yOAlaEHYnA==",
+      "iv": "Q127FLviW0NOA8Wt",
+      "ct": "BO6V8mP+6FIuff/Pu3/2EdhULHyDcgqBbw++MChfACWBhkHPz9bZxDo9buCsnqQTprwvQPEzr75ays0yy17EJ04gS2bW6zXLqy1vJpY343RPbt5hTPWPTi0kN9Rpk8ELiaoaEl/TQj+X1OWwr4zqzgli939VU791dWsC8D3MfI5NrG28NtOO//wV4h3UhFf1PzEVHVCSn6FPXzIcd0V6u+DIhmfpK9++aJ/X65q4twqPukYYaHvcbOQ="
+    },
+    {
+      "tier": "7",
+      "salt": "qyLz9K8DBj+AJ6d8cI73/w==",
+      "iv": "Y3D3Zl6VvuN/SxFT",
+      "ct": "v4yf0stbyjS6y7R2eEFN/DWcGkOasc+0SscgjWI45c/sLVXebD66bnCn6tOSfJ7v6MV4FWhQ/HKoHEFvttjrj6mres8gtVf3iwGkvhwQh+vqY+Uhofmh8oX2XI0TNNAMYIvSH/PQli0e7MtR9YS9hTMg1Jtt/HDecziyLO6imewu8ufKeNb4BogcrKoaYhLj6YBDhCjBakln7hzaYmJlT6feW/w88WZLajS3ENX9jlvAoYYgphH/ZWA="
+    },
+    {
+      "tier": "7",
+      "salt": "YjAnk3H4oEMyxxyVskS1jA==",
+      "iv": "YRcLVI8wwlyGmylp",
+      "ct": "zLCU2MBWI6xD5MfeNIam8ozpsrEDE22VAXeP8agr5qgxhdtGGSliCedLxdTdB2E2cha7MS2txZynxvuLu/HqjjtPv4YNokE795p0tCOY7CG9qnHELgEmJBhu0eaKbb1Qj1RpaJWeC6wrwfThfkMJR7IPLqu0QKQ0bJzyQS1UmTJFFDIzB7wx5FkjuTXQlUEsIOZm65un8iFH6uN7Vc0QWJt807x2pGofTwJcn/QyluzOYX0RyNEK7Lw="
+    },
+    {
+      "tier": "7",
+      "salt": "eoonsDcivo51w8KHW97PrA==",
+      "iv": "bUT8zfUtKKJyum+L",
+      "ct": "+FtXQZe53QdXbCEoCKrUVv0bZvswyLdPfJjXBvfzzPYsKe9ePuPlq8ak3Y9LI3mhxdRvDkCorgQ0WL+uYyLDg9V3m1gTy9vhS5sFI4WotqlBKDHeWs2rdjqXuMHBpz44zdlSHtgud4ViO49Piv3wDvLDv1BTtQzGmIWr8TK8HjstPC3ZnqZsISAgWPLZFgYPIQgNOlill1N1i4GuoP4ln37ZqhYG9yzN/Qf/zUIPmA/hyurYHsoc16w="
+    },
+    {
+      "tier": "7",
+      "salt": "s8qwPqnwenjX2FegloSgyw==",
+      "iv": "TNEN5p3+Wi1psqEt",
+      "ct": "EW/lLDvDFxLCrIkiaHFVvN4xCyYh/Nc9+bFFV6D+hP0iDrn7HlSpaXzaSfxFKp72gwYgcCzUuGE+WvAw8nKDBMnNTJdnLVF9XLLdfbkC8EojSiEiB7JKsfgwLOby/QqeE4EFalzsPzg6qahGox4oipYQBHncZtLipq1n7ReRGab5UZs6bcr3k3l/4scYGX5jkuNQ2Gm3j8NJqdQ+NICvxNLlZdgWHHbj8y6XWB74V6MjKRNDevzRv1Y="
+    },
+    {
+      "tier": "7",
+      "salt": "R/OnbB8FshkEuymI29vSOA==",
+      "iv": "NOT10edHNuDViuKX",
+      "ct": "0p37tQS9zBTaaXbDmx6w1zxJaNeO19nPFbAxuBEwXO1Qr6LusbzH3II2R6Be+SLJQ/kHMC2vS7NzQ1Y4pOzidqZMfefl76K8XkqyewlDaxSkqnzDn2xl3N4mpXsU1NmhGL4HJ3P+4OjPOA7DFrdeVaboappBsumqj6jAf20nbD03MdP4O7BlZbxT6a3Q3urzF3HzuzKaVJ+vZj5Jg/Wzbq7pSMbvYH5EaLRdCp9YVCMzb0R+etD3op8="
+    },
+    {
+      "tier": "7",
+      "salt": "l909ehAbvTNEoStBR/zYvg==",
+      "iv": "s/RGnx/XwKIY1yNZ",
+      "ct": "cNDeEHTJ5Spdnq/MIDRy0s88qAsiEWQTgC1NqLfrNA5dhEb9gQ143BqKMOkrEDwKsyAyKO06jwwBQ2D3hHMqh59EoxCz5tsYolyd5rUa5GO0cfqkAFWdSBp5Er8WvBVdFQY8hxol97LZBu8Nh3C5XhY0vgUjpc9ZQk4xQK3hY8YYdvxvWzRBeIwnqRBABkQyT7imrUaNOGtCuvpaoZ7UAUMNbeVwXwpk7gvBpz5OmlFxZcWRwr82DiY="
+    },
+    {
+      "tier": "7",
+      "salt": "aXGWCknSGpqgNWpxbsiDxQ==",
+      "iv": "phFMj7x1ezw+Nqqz",
+      "ct": "1strARQl9gl2s0YUglxjJ2FzdsnvHJen2+sO/addetyV7jxWh9m+0OfGcgWTxVTn7AkH66AsBGjFym2+Wyv/fMA35r7XXPDg8VGDgyfvA/EpEcUDyZztzZg18Uy6Jc619mR47xFgNSFh/YxWibO7GfuZGlYWOfOI5OxiuuXbLBtgrWtAp2bbVwI8eGseapVtZMY9NMca7hF1BeOkAlafxCJhJKrcDE5pN4Yzz80bV6egdc4/kgXew0I="
+    },
+    {
+      "tier": "7",
+      "salt": "vnZ1GJJ8L8PgbzNdhj7hdg==",
+      "iv": "2leYheJeUZr5Apj/",
+      "ct": "OhUE7eocKZCY2psbpqlRRxhOZUZfFhm0xOe+YCYCEF3q3Z/oW8ZmEwkVzKvx1cxsmPKNjALhh5QZLuaMMvJOukRW6YVvUB8sQpshEIBhPNnYMVFGCMyi+N/vcQ85AVAMFhBJrAgFeq+eQS+GBmVPEiNzrTgFLiPEMSCsknLppnXizfPeKSSqdn/sUnxh4QA3g1JR5CaIDEti9YnWELlHlLS27oD6TBrCcBrEHxEWreatVgl0hooE/7Q="
+    },
+    {
+      "tier": "7",
+      "salt": "wwD3OYQCf0RuOKdZWSumFA==",
+      "iv": "hrGsRQoel/zX7KCk",
+      "ct": "6D+L9QLapSjqHrLx4eY3E3hXPrfw6pUGk8jJ7rtVxda1CUrDcY8XFsMDH/cL4XF/a116+G5dRoaqT4D2O1pWJrUaT2rvSydKP5EYsHrcBToSHLqFswLT+6prdwlMaky+GDvzlWdV8U51WxiV193zHTCeHgsPs8rZPTpXKH/+tK2B0lDJhY+GO3zsSF72tLUQ/wJKDevZUpKHDLm3TduiU57ZRPsNJRQUCwdiYFEajduugMbm3ZJaElg="
+    },
+    {
+      "tier": "7",
+      "salt": "AfO8B3tckQf7V76kFwVjhQ==",
+      "iv": "ONFzMgBTcdtCugwh",
+      "ct": "AjRww6K4KZeLoFwrp5Ut6cIJHYo0g3BD1QCWJPTlklb6JD1j/YSUdgGfKOIsD6CdCXYR1jMI87A5A3DI6RCna7b6cfwL75mBBz/a7vr2kS8VgXDHwAocxb+iOf1V97ei1aAsejRJU7eOub9Bb83P+cyfy2itxKOshtla3INxfAvyJDihx+q+OgfSmHQhwDkZ9LjvFbmXvsfiKr4pjJImbA42M50kV8kubnqy"
+    },
+    {
+      "tier": "7",
+      "salt": "/cpd8/mL+IaMoeMLN0aDKw==",
+      "iv": "Nmo/HTUhv5SHXqtL",
+      "ct": "UyYz7ikS0aKGwJk8d2OcNRmoChTngHnkGaUvFgHyadL1X7mFGxKNmnEBtmTQ3C5Np64fzQegyPc1P6YffrK20nIEepw3YNt5e1MNJ2i1dlt2GWLAmCY5nVnU4fUQDFxaGIBuFGHozao0Uyqjm+AuYuFlyGSMyBTQrMvgFJ/XDiPY4/Tk48k3E8jBM/T1+2TNvYo6motxNuHd/tdBxpgTU6ee0T2kk1k1qFRYBwlTri+hlgLymTkUtEw="
+    },
+    {
+      "tier": "7",
+      "salt": "3jrMFFmp8En4rhoAvqc6jw==",
+      "iv": "iwvROmAfTGx+0Kna",
+      "ct": "vicaXd2s+it9vvpWHuh+lmzy0D/SioR0D+RjZSEFKwGVpy437cGmH3wIFoTnhN7LgU7VkN4hUSPvavkZXFddsICaz7wJA4A6oxFkD5S43ETTPZA6Y97H57qW75ObVYVGZ9IA2skjeLnaxkiHbNzUAoVi4kgKH6VabiIgSijYswNy7S8+L+lk7oFv7ZT0iANlWLnWiQYTlXekAMT3LIyiee6NLUg5AJd5fBAU"
+    },
+    {
+      "tier": "7",
+      "salt": "mkgcaRnqLK8s179qm+EyBQ==",
+      "iv": "vKdJjo4metBhdO07",
+      "ct": "zzCGXv8915fFyD5lY3cR9ZfRbc2jjoM979pp2mG4ZfWULcm5RZ0OO0lbd5bG8hSK99Y4JYb5V5ZUZ3OWOzhMfOPhAjlu3hXYMepaRa0c7ew7ELR8/UQSQsuDztb9HK9ljHrGtldW4XN0ze85RofFITIed6VCapWFWoPBsAyTi9RDaGxgGl/rFKwM1CegliEA1wi/djrFwkitnWiagwJtyRjKl++yNFJ6L5dhkGsMBG5GYocs5vGgQxg="
+    },
+    {
+      "tier": "7",
+      "salt": "eIlXZ3nWTsJI6X6fXqvxKg==",
+      "iv": "H2WJn/zli6GoPm4h",
+      "ct": "Yxmq0pNuq0Vpfqvv+XjRWJY2ev6qFk1G3XDnRPRse9eMHOGXDlwp3gzrShyrzvx544O3JYfHZzhLjLVJf5T/EKlFtzggBrmNl21H8PJYZrMqZz6EtooUnDiCz/sRrt8yAn7JSi6elIm41ay2Hst3l6z/sQTyuFdJyuWFzL8LUkz80w6ql8YzPkNP8QkAW8PxBCjITS7g8doBQp+nA/UcLm2wkfHy8Vd4vi2llbMaohXHIXFhbbhSpbY="
+    },
+    {
+      "tier": "7",
+      "salt": "BOCqRDNhqkdJZ8iGHg1acA==",
+      "iv": "DYmIvwzsep5Dzw5C",
+      "ct": "pF0IpxnOd/HdjlLLZlH1V9ft5tBga4EAr6KcgA75MQ/MSGJWHuDePdCo7XYVJ6S1YiUB4IayC5L5DkNzv7Tbc1ghl4J1wO2mD1k2s4pBBXJWG8EWU1+JpVS4hVuzKqXb5/hPR/rWV3H6wr+KxwCbN8bZaVE3Ijb/7SOPF9esBKHmEJsDDuks4c0R3ttq0iWenaA6SdRXNMd8P/sl9EkYfPAxkQd5q+R77L9N1Rctf95n+xKdy+WRIO8="
+    },
+    {
+      "tier": "7",
+      "salt": "vPlewQ2wYM3Zp3zYkpgRBg==",
+      "iv": "mKKgL6ufNN4U7n+g",
+      "ct": "rtRoUeqLaHFVO9/xj+PB+cZ3hbmUYVFCM2xXPETBMWi4notLPTfpFJQl3EjRzn8+BhybEft6QnEERXkVkbf3bexOB7/m52Fc5GXeuqAciN8hbIiGbj6hnU3gT2FKWUSgkwtkNDjaa8iN/4h3pR0Lyj+ftBB8fEX0qX2Q5+Ky/ppYVDutL3HBV8Rtp76Ty+lOuHWXxpYhjQzumztsZEJSYwwawSmKzKUplAbOkp1NgEHDzvRSURW8JxY="
+    },
+    {
+      "tier": "7",
+      "salt": "bE47Dz0YBEWAx7VB46RenQ==",
+      "iv": "iOZL8CkjmpOYiy2b",
+      "ct": "8Qxu+tpHAa50HAb8L+bcVL0uAiF2EIW/FAyJu+xmu3zhafbgJmgpklDDqHUXKDAOc8v2pudEBw1KJd6hUmstdNcBeuo9glX3enjlJV+76eGXL+k3JjVaNWIPXyubafkFwGMzFcJFqZuAgswvrprb9+fBjS0h8Og+TWFU2vB9duBLa2oN3LSENy6EB3D1geNXn2Axi9HQ/tsNIbJ9EhQtqLkZ7gxJmS+KeNUF"
+    },
+    {
+      "tier": "6",
+      "salt": "ZsE5GwHvylRggLk4BtBlRg==",
+      "iv": "Gn3TdrN1MlVTYOXR",
+      "ct": "m+xEnUkcWXW0PpF9Ogd1DirKKh1ej86esCZW+NwvmLXr9ejISF/cWtCM0VJXgvUehJ2c9lf5KOMcwVlmQfGIe4sxqOQtZjHptjmoB0wK2N6R7jDJYRANEk2pZj40p5Ta5vNPiBJfIxUGCO4rfnxkyuXu7n4L2z29sE1/p2n+fCTwC3H8rak3MAzUFM35HRLarHWVtuxiCWGDQjIOrXv5p2aVrHDzn047qp+p4tH8f1Ol+CXLEgI0dL/0U33J5fGK9gVPefRZnDXahz3BhO1Nw1JX3N1W6vfU/H0yTXnjwaadI189xe96z0g0l5cCZvNKAutf8IsECL1Y4EQG6ZkFQoApnIpSigVrLLglH2w4qt2bWDk/Soagw2irVyTVw/evtpFihYZ1dMiTp79EgBCTULkRipPQkJXBHIqUM72fqkW94Rq02KIryecBUl70Y0qpTAbazRVZUnPAeJnKkHhG+UjQ+3x9Lk9FTlSsjkWHajvogjh7Xvjr8gYZkdhKJuNu7nAep7qCPmOmFzuhsh144Qhgc7o3ufgZ9dY6kS8xsT1/ROCQvfm0FkGc7mcGmaTdJVowM0eZiX3eUN/G+8jzpTjH8415CGhUlDB2+iqv/TayT8J8sWPVBf0icMkJNVIWT72a6AY7LwWDJqzrvKzpJfo7J7OYoq+36Hb5QpbJY1pqGnBt7/gBdGIhBpBoOz6Xn0xcQGkXfJI7BCC3sfjVdm8FaTkrV/BsPj65yAoZhfuTR7nMEMncHDbT7q6omrzxRhuiI9J85fNaaaqvQDDIRtO1YZ5WdhEcMU87Qmt0YOhARtCBgqML3Wye4x4s6b8FU6GJzS0wyPiGO6sfOuzxpE+jqqM8XVuFEKx4GoNwfk+fQ6XeD0AJJiVbWl9os94tXZVGUzh6BtEKiB3VXF0JCV8aAvnV1KmsdtcO5wTVi6nwk9FgYPu6jn62X3c2lpOZ1HoKalgb4NOjJ4Oq4CzvsdOgQrIRE/MwXHJ7s6eOR1fqs9hvNuuo0yrn1biMI5N7YfxdlS6msvf6CVboNGLj6hlclzwEuLPcNQ7v7hoFvGFH7RQlSj78C7gn8boeozzeil1AnO+gnOYP9ZazCWnsDcmDMFYOodcIHzhYshyOEFB2c3uzRxp9tvc="
+    },
+    {
+      "tier": "6",
+      "salt": "XIGcZRCY6VUAYKb32nxU5A==",
+      "iv": "86Px5Xwg5UPjx1Mb",
+      "ct": "AEBhmRO+olDPlQOkoSYGQa/wKQJLBhxxxlbcoGQ5cs3rC91KOy48mFzRZW/DHzuUjjeCS2JjUVXAkardTXz9RWxhVcSu/7d3cAT73xben6Fx4gJAWXFQfMlkR2L/VhyvMTKiRsfOYnxYFQiOEJ/RRabdZ2IKF8utVUQ/j4lTCqPb/k5zP4ZTRj8CHOe3xHT+E++tKPWj3KVwzVVVZwXjxchSVQeYOkghhLFqV3c/bwB2y/fQNGk+zCfUb6UT0Fz7zzkk5Jb8jPifcyoVr0oyPffYPhlq0HS3KlaVy1SsZessXk8166z8sHETqv/xEZUt2LWxsQ8j+2QBfl1Cd3BLiOD6fENyZv3hOgr96O4vNCZ2I1rhPGypC72kHavDU56z1WYaYzcQS68YvD4Ur6mJbUQ/bDN1u9yKiV+MxBINaVXaexcn7YGxpczH8BpdmGr1scyU+/3g4K8Pwn2iVa7Uoy9ny7x7KCs5EcOVz04x6jM6O0cTyr/EPF8zJKhhDtkV7dPOj8xWZSEpxJknpZzmGgFpjQqvbykfuq0qVmwVsNvP7QtzjbSadQ56hlx3Z+GBHRojXF3by3A9tvlYBRUuelvvY7b1OZw0aCGvKhmkIA/QRNF730aKs9olokoMEDZvP3YAohqxvWwCgN1waHhzTXs29jXJerEliIlrM4k/IQJQiaWDXNrS4+TLsWD8P5chtOxhx/TV9fRdbXyqmXRQs+wgsNeK3lebypT8cMG8/fvX5q7i3VEao22RXRs/Z8VroX/ME780jo267H+TXJ9BXTo9NEJDmfVXkqDsQ0bT+x6gW3X6F25o3c6TUaAbXNGuWH3Wav5s1NWJ+kiksgVn6GuflwwfpAlwizxMrEH5xSz+zKfQSsxuZ7F42vfW5xA5UOfoaKYb06s2XPbQiBwU6CfPnPsv9IB+FHzk4eRtuwelkUC/+k+KOWgaECIPx8hoGFOQKBm52QvjLFjPPIVK5JQ+MGwx7ocwuQFAAVQ+6qrH4eqgLi0zLf8ed4SFgy3abr6VBy0X6zwz0qazSnvuGIMVq9UNHfKWN6sI9OrGcBDUJqexTpa0GdSj9TPreABb2e0InqNWVGJkIYf4rw=="
+    },
+    {
+      "tier": "6",
+      "salt": "rWeFBT15Q3TFW8qaFJwD3A==",
+      "iv": "KW7VF61YyXbbt1G0",
+      "ct": "Ih+PE2b5/y8/5z59e/lwJ/k2jYffyvmF0BuFT1Kl0TDsaGq1wo2MjUrU94DRIBkNLqiP+2UtzFQteTCgweqkQbAEuznURFlMkTWz6llgHc2C3FL99X2N1OKgT9gsGEcdAcgGsUvPLu9xIQnR0KrKzXmxZlHjEWJTQ3qAbRgNIX7XJJ49h7pEU1dLASvX4HnGLfOfcjWgdSNYdTRErXY0ZJS4Wm29mez8HLs9NxAGV3YAZcj0NvHiXNmJa7+b3ZhPv/+k5y5yYCNrvL6/me+qCNhRLOvGWYUUoFCPZozOpWJutGAJDGtgOv04S7NSBQHYplocNfj/EsUXF7rJxJ5CdcYu70l1jkFiXLPhrMNQiLCVR8BKKZmNXPJeVxc4exsr3TLa8U6n2Y/ltgIK3/gJVqsNn35sVqqGQQkKu5gkeldETAcrLMVtWbS4WQ6fGIo8ejjB6J21idPT+ePhPaJKc99UyrqggLGSsLoHxHHX/JDFR4dzt4XCxGqKkv8pSweBZonOUiY5tC//0EPNlDRKiR4G1UZH4xKmaxCHJ69qb8TMfxCNdtwlkKEmN4BA0Dxu6G0Q3PqY7np/7DQgjeDghqNI+ZLWplb5lyWIF16MYOOESuqNR/G/eyjqSClI+Ljq6n+pdrQwkRpTx9jufCpn0xQ4PEo2OGBa+1S5T1gOv0WOWGM4Dk+eC/TKRDGqFn2NVNsaI8mnWyElEkdkcZXoSv1GRRT9zNzh9sbSyJ+f6N5f68MDjYnxeOJU3Viy/ZvAjKPaBxTFqYFfaMj9xJPORxqTZKL392Y8sQjvHyN5YuRLCT1BgacPnez72d+umJJYp1Y8se1Vuxn2jafpHzumP/GCQHfTANxqyqDRIM+bkhvmsaumYyx44mrg4FrrB+9qcPL7ol+MgWcnITtmL/LxS5wd8ET4a2/RW4PcvZ92KlfISsPKvpkGEwbjxgEtOL89mzcF47erMD0ljKM8J8LGWtTRm6evtX2SZOLRgxs8L61q89O0OMpyIH+cvJsc7Ljv5E5LLdTFbFKU8yG9D26jSNH1hjQiEflqYd4uqoVM1E3+d6JWq82h2Zocf+cKJoXJrvRvATwofj39iQNOA8+D/5orQwSqZz8CjHHQ"
+    },
+    {
+      "tier": "6",
+      "salt": "P9cEt+9ZRYNJsz/7OVK7vg==",
+      "iv": "JBtlv3ducAFrh3/5",
+      "ct": "65ILDL+DNV363kp3D6G8Wll0vjwvvMU2sJX1ziEmmMY9STZnE6R3q+JF44fOEo7l6DdnfZyWWgB63dXUaZuflmr+AOnTAxQNFoaE1C6PootGiRtu07Rre1LKQYY7aEgoN+1YTrk3EgSkcGeyiuYBUC9Xo+rO8hdqqnLxqfwrZv3XA5/Cx0R/AK7NbnDPMBrcPahw/VaOWwM7slXutMwyuppn7eFBZIJmf2TchM2LoWTvBcVRAcrOhcTxFsBb7R6D6wU9SyBrR0MzAOES2ANTrsdp7dgm1Tt/FJsgEizYLR/xjUWiBp80jc+dF8o8IKkAw36NDp9KMBhoQ/8/S5aqUJA+kUKeX0otKmSHZsVP81sMHUZTYKkY22o6X/HcRZdncB1qFVruEsub81IdMgkNg5Tpi4LKl6F2MerXJ/UJ4cxam6biTdCiuN4EdbILjAy8lJOn6i4uiJSPJLEb1CZvOxzimzBh7Go65Zibt0LWSv4i4A1NatwOIhzNdGsJbZiOeuTXGgcgj3js0wi7aGUUiVKC8qZlCvVxlqCja8kmTj40ULqdW1rV6IKJO60yulRJ/LZ4GeWHbUruHN5Bw9rB64ZVBZMKcG2n0IpPLp9oN0CnigNtPTkay8E8Pg/TSny6mFPtWKChCL8VxorJ8DDPTmpRVim491riV2MNW+mS5ZU/nOos7AwPL+eyVOnLk+kdeR42+INUTg5tM6h01ngyicoGXQfo6E7PaX8Qv+8Fn8DA0PG07gVRM3Ol5DSyPKypa35DoJ315ksbMihCNurmZC2GHL9PEA5y5ygc+/+0haPmMLlsWmjkz8W81anSwB7P1jt3gzZCN/CmJVnF0IkTgNADx5Bhy9/zcT+6Uqhpis3VRpC5Aq4vNdW4tUTzknJnQtMAmGAXuvEP6tajk+9FaG3CXs7gt6+PkFHLKbalmiE9r/1FsPaeulNnN6tACY2EZ94wk7G88Vh7NWTxB65/D7dohPx9G10NAg=="
+    },
+    {
+      "tier": "5",
+      "salt": "+2gf0K9j++F39v7FV6hpAw==",
+      "iv": "gz77WJGdl4woEnoZ",
+      "ct": "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"
+    }
+  ]
+};
+
+  var poolModal     = document.getElementById('pool-modal');
+  var poolPwdInput  = document.getElementById('pool-pwd-input');
+  var poolUnlockBtn = document.getElementById('pool-unlock-btn');
+  var poolCancelBtn = document.getElementById('pool-cancel-btn');
+  var poolModalMsg  = document.getElementById('pool-modal-msg');
+  var poolModalIcon = document.getElementById('pool-modal-icon');
+  var poolOpenBtn   = document.getElementById('pool-open-btn');
+  var poolAccessRow = document.getElementById('pool-access-row');
+
+  // ── Pool brute-force protection ──────────────────────────────────────────
+  var MAX_POOL_FAILS = 3;    // wrong attempts before lockout (change freely)
+  var POOL_LOCK_SEC  = 60;   // lockout duration in seconds  (change freely)
+  var poolFailCount  = 0;    // wrong attempts in current window
+  var poolLockUntil  = 0;    // epoch ms when lockout expires  (0 = not locked)
+  var poolLockTimer  = null; // setInterval handle for countdown display
+
+  // ── Key-setup collapsible ────────────────────────────────────────────────
+  var keySetupToggle  = document.getElementById('key-setup-toggle');
+  var keySetupBody    = document.getElementById('key-setup-body');
+  var keySetupChevron = document.getElementById('key-setup-chevron');
+
+  function toggleKeySetup(open){
+    keySetupBody.hidden = !open;
+    keySetupChevron.textContent = open ? '▼' : '▶';
+    keySetupChevron.className = 'settings-chevron' + (open ? ' open' : '');
+    keySetupToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  keySetupToggle.addEventListener('click', function(){ toggleKeySetup(!!keySetupBody.hidden); });
+  keySetupToggle.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); keySetupToggle.click(); } });
+
+  // Show the button only when config has entries
+  if(POOL_CONFIG && POOL_CONFIG.entries && POOL_CONFIG.entries.length > 0){
+    poolAccessRow.style.display = '';
+  }
+
+  // ── Lockout countdown ────────────────────────────────────────────────────
+  function startPoolLockout(){
+    poolLockUntil = Date.now() + POOL_LOCK_SEC * 1000;
+    poolUnlockBtn.disabled = true;
+    poolPwdInput.disabled  = true;
+    poolPwdInput.value = '';
+    if(poolLockTimer) clearInterval(poolLockTimer);
+
+    function tick(){
+      var rem = Math.ceil((poolLockUntil - Date.now()) / 1000);
+      if(rem <= 0){
+        clearInterval(poolLockTimer); poolLockTimer = null;
+        poolLockUntil = 0; poolFailCount = 0;
+        poolUnlockBtn.disabled = false;
+        poolPwdInput.disabled  = false;
+        poolModalMsg.textContent = 'Можно попробовать снова.';
+        poolModalMsg.className   = 'pool-modal-msg';
+        if(poolModal.style.display !== 'none')
+          setTimeout(function(){ poolPwdInput.focus(); }, 60);
+        return;
+      }
+      poolModalMsg.textContent = '⏳ Подождите ' + rem + ' сек — слишком много попыток.';
+      poolModalMsg.className   = 'pool-modal-msg err';
+    }
+    tick();
+    poolLockTimer = setInterval(tick, 1000);
+  }
+
+  function openPoolModal(){
+    poolPwdInput.value = '';
+    poolModalIcon.textContent = '🔒';
+    poolModalIcon.className = 'pool-modal-icon';
+    poolModal.style.display = 'flex';
+    if(poolLockUntil > Date.now()){
+      // Lockout still active — restore disabled state; countdown is already ticking
+      poolUnlockBtn.disabled = true;
+      poolPwdInput.disabled  = true;
+    } else {
+      poolUnlockBtn.disabled = false;
+      poolPwdInput.disabled  = false;
+      poolModalMsg.textContent = '';
+      poolModalMsg.className   = 'pool-modal-msg';
+      setTimeout(function(){ poolPwdInput.focus(); }, 60);
+    }
+  }
+
+  function closePoolModal(){
+    poolModal.style.display = 'none';
+    poolPwdInput.value = '';
+  }
+
+  if(poolOpenBtn) poolOpenBtn.addEventListener('click', openPoolModal);
+  poolCancelBtn.addEventListener('click', closePoolModal);
+  poolModal.addEventListener('click', function(e){ if(e.target === poolModal) closePoolModal(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && !poolModal.hidden) closePoolModal(); });
+  poolPwdInput.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); doUnlockPool(); }
+  });
+  poolUnlockBtn.addEventListener('click', doUnlockPool);
+
+  // ── Crypto helpers (Web Crypto API — no external dependencies) ───────────
+  function b64ToBytes(b64){
+    return Uint8Array.from(atob(b64), function(c){ return c.charCodeAt(0); });
+  }
+
+  function derivePoolKey(password, saltBytes){
+    return crypto.subtle.importKey(
+      'raw', new TextEncoder().encode(password), {name:'PBKDF2'}, false, ['deriveKey']
+    ).then(function(km){
+      return crypto.subtle.deriveKey(
+        {name:'PBKDF2', salt:saltBytes, iterations:10000, hash:'SHA-256'},
+        km, {name:'AES-GCM', length:256}, false, ['decrypt']
+      );
+    });
+  }
+
+  function tryDecryptEntry(entry, password){
+    try{
+      var saltBytes = b64ToBytes(entry.salt);
+      var ivBytes   = b64ToBytes(entry.iv);
+      var ctBytes   = b64ToBytes(entry.ct);
+      return derivePoolKey(password, saltBytes)
+        .then(function(key){
+          return crypto.subtle.decrypt({name:'AES-GCM', iv:ivBytes}, key, ctBytes);
+        })
+        .then(function(plain){
+          return JSON.parse(new TextDecoder().decode(plain));
+        })
+        .catch(function(){ return null; });
+    }catch(e){ return Promise.resolve(null); }
+  }
+
+  function doUnlockPool(){
+    if(poolLockUntil > Date.now()) return;  // hard guard — even if button re-enabled somehow
+    var pw = poolPwdInput.value.trim();
+    if(!pw){ poolPwdInput.focus(); return; }
+    if(!POOL_CONFIG || !POOL_CONFIG.entries || !POOL_CONFIG.entries.length){
+      poolModalMsg.textContent = 'Пул ключей не настроен.';
+      poolModalMsg.className = 'pool-modal-msg err';
+      return;
+    }
+
+    poolUnlockBtn.disabled = true;
+    poolUnlockBtn.textContent = 'Расшифровка…';
+    poolModalMsg.textContent = '';
+    poolModalMsg.className = 'pool-modal-msg';
+
+    // Pre-filter by tier digit for speed (first char of password = tier)
+    var tierDigit = pw[0];
+    var candidates = POOL_CONFIG.entries.filter(function(e){ return e.tier === tierDigit; });
+    if(!candidates.length) candidates = POOL_CONFIG.entries; // fallback: try all
+
+    Promise.all(candidates.map(function(e){ return tryDecryptEntry(e, pw); }))
+      .then(function(results){
+        var found = [];
+        results.forEach(function(r){ if(r && Array.isArray(r)) found = found.concat(r); });
+
+        poolUnlockBtn.textContent = 'Получить ключи';
+
+        if(!found.length){
+          poolFailCount++;
+          var left = MAX_POOL_FAILS - poolFailCount;
+          if(poolFailCount >= MAX_POOL_FAILS){
+            startPoolLockout();   // disables btn + input, starts countdown
+          } else {
+            poolUnlockBtn.disabled = false;
+            poolModalMsg.className   = 'pool-modal-msg err';
+            poolModalMsg.textContent = left === 1
+              ? 'Неверный пароль. Последняя попытка!'
+              : 'Неверный пароль. Осталось попыток: ' + left;
+            // shake animation
+            poolPwdInput.classList.remove('shake');
+            void poolPwdInput.offsetWidth;   // reflow to restart animation
+            poolPwdInput.classList.add('shake');
+            setTimeout(function(){ poolPwdInput.classList.remove('shake'); }, 400);
+            poolPwdInput.select();
+          }
+          return;
+        }
+
+        // ── Correct password ─────────────────────────────────────────────
+        poolUnlockBtn.disabled = false;
+        if(poolLockTimer){ clearInterval(poolLockTimer); poolLockTimer = null; }
+        poolFailCount = 0;
+        poolLockUntil = 0;
+
+        // Deduplicate and add to key pool using existing infrastructure
+        var seen = {};
+        var added = 0;
+        found.forEach(function(k){
+          if(seen[k] || !isValidKey(k)) return;
+          seen[k] = true;
+          if(keyPool.length >= 20) return;
+          if(keyPool.some(function(e){ return e.key === k; })) return;
+          keyPool.push({key:k, status:'idle'});
+          added++;
+        });
+        if(currentKeyIndex < 0 && keyPool.length > 0) currentKeyIndex = 0;
+        renderKeyPool(); updateModesEnabled(); saveToStorage();
+
+        poolModalIcon.textContent = '🔓';
+        poolModalIcon.className = 'pool-modal-icon unlocked';
+        poolModalMsg.textContent = added > 0 ? '✓ Загружено ключей: ' + added : '✓ Ключи уже в пуле';
+        poolModalMsg.className = 'pool-modal-msg ok';
+        setTimeout(function(){ closePoolModal(); }, 1600);
+      });
+  }
 
   function findWorkingKeyFrom(startIdx){
     for(var i=startIdx;i<keyPool.length;i++){ if(keyPool[i].status!=='exhausted' && keyPool[i].status!=='error') return i; }
@@ -1547,6 +2544,8 @@
   loadCustomModes();
   renderModeGrid();
   updateModesEnabled();
+  // Auto-collapse key setup if keys already loaded; expand if no keys
+  toggleKeySetup(keyPool.length === 0);
 
 })();
 </script>

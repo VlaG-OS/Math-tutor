@@ -109,8 +109,10 @@
   .pool-access-divider::before,.pool-access-divider::after{content:'';position:absolute;top:50%;width:calc(50% - 22px);height:1px;background:rgba(31,42,82,.13);}
   .pool-access-divider::before{left:0;}
   .pool-access-divider::after{right:0;}
-  .btn-pool-open{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px 18px;background:rgba(192,71,63,.07);border:1.5px solid rgba(192,71,63,.35);border-radius:8px;color:var(--margin-red);font-family:var(--font-body);font-size:.92rem;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.01em;}
-  .btn-pool-open:hover{background:rgba(192,71,63,.14);border-color:var(--margin-red);}
+  .pool-access-row-inner{display:flex;justify-content:center;}
+  .btn-pool-open{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:8px 18px;background:rgba(192,71,63,.07);border:1.5px solid rgba(192,71,63,.35);border-radius:999px;color:var(--margin-red);font-family:var(--font-body);font-size:.85rem;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.01em;}
+  .btn-pool-open:hover{background:rgba(192,71,63,.14);border-color:var(--margin-red);transform:translateY(-1px);}
+  .btn-pool-open:active{transform:translateY(0);}
   .key-setup-title{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--margin-red);margin:0;}
   .key-status-pill{font-family:var(--font-mono);font-size:.76rem;padding:2px 9px;border-radius:999px;background:rgba(31,42,82,.07);color:var(--ink-soft);}
   .key-status-pill.ok{background:rgba(30,120,60,.1);color:#1a6e30;}
@@ -119,7 +121,7 @@
   .key-input-row .btn-primary{padding:7px 14px;font-size:.85rem;}
   #key-input{width:100%;font-family:var(--font-mono);font-size:.82rem;padding:9px 12px;border:1.5px solid rgba(31,42,82,.22);border-radius:6px;color:var(--ink);background:#fafafa;resize:vertical;line-height:1.6;}
   #key-input:focus{outline:none;border-color:var(--ink);}
-  .key-pool{display:flex;flex-direction:column;gap:6px;margin-top:12px;max-height:180px;overflow-y:auto;}
+  .key-pool{display:flex;flex-direction:column;gap:6px;margin-top:10px;max-height:150px;overflow-y:auto;}
   .key-pool-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;border:1px solid rgba(31,42,82,.1);background:#fafafa;font-family:var(--font-mono);font-size:.78rem;}
   .key-pool-item.active{border-color:#1a6e30;background:rgba(30,120,60,.05);}
   .key-pool-item.exhausted{opacity:.45;text-decoration:line-through;}
@@ -134,6 +136,8 @@
   .key-pool-del:hover{color:var(--margin-red);}
   .key-help{color:var(--ink-soft);font-size:.78rem;margin:8px 0 0;line-height:1.5;}
   .key-help a{color:var(--ink-soft);}
+  .key-advanced{margin-top:12px;padding-top:12px;border-top:1px dashed rgba(31,42,82,.18);}
+  .key-advanced-body{margin-top:12px;}
   .key-video{margin-top:14px;padding-top:14px;border-top:1px dashed rgba(31,42,82,.18);}
   .key-video-frame{margin-top:12px;border-radius:8px;overflow:hidden;border:1px solid rgba(31,42,82,.12);box-shadow:0 1px 3px rgba(31,42,82,.06);background:#000;}
   #key-help-video{display:block;width:100%;max-height:420px;background:#000;}
@@ -240,7 +244,9 @@
   }
   /* ── Pool Key Modal ────────────────────────────────────────────────────── */
   .pool-modal-overlay{position:fixed;inset:0;background:rgba(31,42,82,.52);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;animation:pmFadeIn .18s ease;}
+  .pool-modal-overlay.closing{animation:pmFadeOut .16s ease forwards;}
   @keyframes pmFadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+  @keyframes pmFadeOut{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(.97)}}
   .pool-modal-card{background:var(--paper);border-radius:10px;box-shadow:0 14px 52px rgba(31,42,82,.32);max-width:360px;width:100%;display:flex;overflow:hidden;}
   .pool-modal-spine{width:5px;background:var(--margin-red);flex-shrink:0;}
   .pool-modal-body{padding:28px 24px 22px;flex:1;display:flex;flex-direction:column;align-items:center;gap:13px;}
@@ -278,7 +284,7 @@
       <span class="settings-chevron" id="key-setup-chevron" style="margin-left:auto;">▼</span>
     </div>
     <div id="key-setup-body">
-      <textarea id="key-input" rows="3" placeholder="Вставь один или несколько ключей — каждый на новой строке или через запятую:&#10;AQ.Ab8RN6K3BhTKUA...&#10;AIzaSyBHt34xNFuHJ..." spellcheck="false" autocomplete="off"></textarea>
+      <textarea id="key-input" rows="2" placeholder="Вставь один или несколько ключей — каждый на новой строке или через запятую:&#10;AQ.Ab8RN6K3BhTKUA...&#10;AIzaSyBHt34xNFuHJ..." spellcheck="false" autocomplete="off"></textarea>
       <div class="key-input-row" style="margin-top:8px;">
         <button type="button" class="btn-primary" id="key-save-btn">Добавить ключи</button>
         <button type="button" class="btn-ghost" id="key-export-btn" title="Скачать ключи в файл">⬇ Экспорт</button>
@@ -286,40 +292,51 @@
         <input type="file" id="key-import-file" accept=".json,.txt" style="display:none">
       </div>
       <div class="key-pool" id="key-pool"></div>
-      <div class="model-select-row">
-        <label for="model-select">Модель:</label>
-        <select id="model-select">
-          <option value="gemini-2.5-flash-lite" selected>gemini-2.5-flash-lite ✓ (рекомендуется, стабильно, бесплатно)</option>
-          <option value="gemini-2.5-flash">gemini-2.5-flash (умнее, но медленнее на бесплатном)</option>
-          <option value="gemini-3.5-flash">gemini-3.5-flash ✨ (новейший, лучшее качество)</option>
-          <option value="gemini-2.5-pro">gemini-2.5-pro (самый умный, лимит 50/день)</option>
-        </select>
-      </div>
-      <p class="key-help">
-        Ключи сохраняются автоматически в браузере. Используй <strong>Экспорт</strong> для резервной копии.<br>
-        Получить бесплатный ключ: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a>
-      </p>
-      <div class="key-video">
-        <div class="settings-head" id="key-video-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="key-video-body">
-          <p class="key-setup-title" style="margin:0;">🎥 Видео: как получить ключ</p>
-          <span class="settings-chevron" id="key-video-chevron">▶</span>
+
+      <div class="key-advanced">
+        <div class="settings-head" id="key-advanced-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="key-advanced-body">
+          <p class="key-setup-title" style="margin:0;">⚙ Модель и справка</p>
+          <span class="settings-chevron" id="key-advanced-chevron">▶</span>
         </div>
-        <div class="settings-body" id="key-video-body" hidden>
-          <div class="key-video-frame">
-            <video id="key-help-video" controls preload="metadata" playsinline>
-              <source src="help_video.mp4" type="video/mp4">
-              Ваш браузер не поддерживает встроенное видео.
-            </video>
+        <div class="settings-body key-advanced-body" id="key-advanced-body" hidden>
+          <div class="model-select-row">
+            <label for="model-select">Модель:</label>
+            <select id="model-select">
+              <option value="gemini-2.5-flash-lite" selected>gemini-2.5-flash-lite ✓ (рекомендуется, стабильно, бесплатно)</option>
+              <option value="gemini-2.5-flash">gemini-2.5-flash (умнее, но медленнее на бесплатном)</option>
+              <option value="gemini-3.5-flash">gemini-3.5-flash ✨ (новейший, лучшее качество)</option>
+              <option value="gemini-2.5-pro">gemini-2.5-pro (самый умный, лимит 50/день)</option>
+            </select>
+          </div>
+          <p class="key-help">
+            Ключи сохраняются автоматически в браузере. Используй <strong>Экспорт</strong> для резервной копии.<br>
+            Получить бесплатный ключ: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a>
+          </p>
+          <div class="key-video">
+            <div class="settings-head" id="key-video-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="key-video-body">
+              <p class="key-setup-title" style="margin:0;">🎥 Видео: как получить ключ</p>
+              <span class="settings-chevron" id="key-video-chevron">▶</span>
+            </div>
+            <div class="settings-body" id="key-video-body" hidden>
+              <div class="key-video-frame">
+                <video id="key-help-video" controls preload="metadata" playsinline>
+                  <source src="help_video.mp4" type="video/mp4">
+                  Ваш браузер не поддерживает встроенное видео.
+                </video>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
     <div id="pool-access-row" style="display:none;">
       <div class="pool-access-divider">или</div>
-      <button type="button" class="btn-pool-open" id="pool-open-btn">
-        <span>🎓</span>
-        <span>Ввести код от учителя</span>
-      </button>
+      <div class="pool-access-row-inner">
+        <button type="button" class="btn-pool-open" id="pool-open-btn">
+          <span>🔑</span>
+          <span>Код доступа</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -803,6 +820,9 @@
   var keyVideoToggle  = document.getElementById('key-video-toggle');
   var keyVideoBody    = document.getElementById('key-video-body');
   var keyVideoChevron = document.getElementById('key-video-chevron');
+  var keyAdvToggle    = document.getElementById('key-advanced-toggle');
+  var keyAdvBody      = document.getElementById('key-advanced-body');
+  var keyAdvChevron   = document.getElementById('key-advanced-chevron');
   var keyHelpVideo    = document.getElementById('key-help-video');
   var topicInput     = document.getElementById('topic-input');
   var chipRow        = document.getElementById('chip-row');
@@ -1814,6 +1834,7 @@
     poolPwdInput.value = '';
     poolModalIcon.textContent = '🔒';
     poolModalIcon.className = 'pool-modal-icon';
+    poolModal.classList.remove('closing');
     poolModal.style.display = 'flex';
     if(poolLockUntil > Date.now()){
       // Lockout still active — restore disabled state; countdown is already ticking
@@ -1829,8 +1850,13 @@
   }
 
   function closePoolModal(){
-    poolModal.style.display = 'none';
-    poolPwdInput.value = '';
+    if(poolModal.style.display === 'none') return;
+    poolModal.classList.add('closing');
+    setTimeout(function(){
+      poolModal.style.display = 'none';
+      poolModal.classList.remove('closing');
+      poolPwdInput.value = '';
+    }, 160);
   }
 
   if(poolOpenBtn) poolOpenBtn.addEventListener('click', openPoolModal);
@@ -2335,6 +2361,15 @@
   }
   keyVideoToggle.addEventListener('click', function(){ toggleKeyVideo(keyVideoBody.hidden); });
   keyVideoToggle.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); keyVideoToggle.click(); } });
+
+  function toggleKeyAdvanced(open){
+    keyAdvBody.hidden = !open;
+    keyAdvChevron.textContent = open ? '▼' : '▶';
+    keyAdvChevron.className = 'settings-chevron' + (open ? ' open' : '');
+    keyAdvToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  keyAdvToggle.addEventListener('click', function(){ toggleKeyAdvanced(keyAdvBody.hidden); });
+  keyAdvToggle.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); keyAdvToggle.click(); } });
 
   // Save custom rules
   rulesSaveBtn.addEventListener('click', function(){
